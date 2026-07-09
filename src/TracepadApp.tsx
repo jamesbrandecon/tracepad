@@ -708,7 +708,7 @@ async function requestGeneration(payload: Record<string, unknown>): Promise<Gene
 
 function notebookVariableNames(panel: NotebookPanel): string[] {
   const source = (panel.content.model as any)?.cells?.toArray?.()
-    ?.map((cell: any) => String(cell.value?.text ?? ""))
+    ?.map((cell: any) => String(cell.sharedModel?.getSource?.() ?? cell.value?.text ?? ""))
     .join("\n") ?? "";
   const names = new Set<string>();
   for (const match of source.matchAll(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=/gm)) names.add(match[1]);

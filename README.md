@@ -7,6 +7,18 @@ adapter surface for IRkernel.
 
 Tracepad is distributed from this repository. It is not published to PyPI.
 
+## Tracepad in JupyterLab
+
+![Tracepad running a guided analysis and inspecting the resulting data frame](docs/images/tracepad-guided-notebook.png)
+
+The full-page notebook keeps the prompt, generated code, live kernel output,
+named objects, and inspection tools in one document-backed workflow.
+
+![Tracepad AI provider setup for Ollama, OpenAI, and OpenRouter](docs/images/tracepad-provider-setup.png)
+
+Tracepad discovers models from a reachable Ollama server or connects to OpenAI
+and OpenRouter with credentials held by the Jupyter server process.
+
 ## V1 capabilities
 
 - Opens standard `.ipynb` files directly in a full-page Tracepad view.
@@ -24,7 +36,7 @@ Tracepad is distributed from this repository. It is not published to PyPI.
 Prerequisites: Git, Python 3.9 or newer, and access to this repository.
 
 ```bash
-git clone git@github.com:OWNER/tracepad.git
+git clone git@github.com:jamesbrandecon/tracepad.git
 cd tracepad
 ./scripts/install.sh
 ```

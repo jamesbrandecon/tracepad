@@ -45,7 +45,7 @@
     "extension": "lib/index.js",
     "outputDir": "tracepad/labextension",
     "_build": {
-      "load": "static/remoteEntry.45f3dc4d154135c10e20.js",
+      "load": "static/remoteEntry.02ece9a64665b8364959.js",
       "extension": "./extension"
     }
   }

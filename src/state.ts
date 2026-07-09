@@ -67,31 +67,39 @@ export function syncTurnToNotebook(panel: NotebookPanel, turn: TracepadTurn): un
   const notebookModel = panel.content.model as any;
   if (!notebookModel) return null;
   const cells = notebookModel.cells?.toArray?.() ?? [];
-  let cell = cells.find((candidate: any) => candidate.metadata?.get("tracepad")?.turnId === turn.id);
+  let cell = cells.find((candidate: any) => tracepadCellMetadata(candidate)?.turnId === turn.id);
 
-  if (!cell) {
-    cell = notebookModel.contentFactory.createCodeCell({
-      cell: { cell_type: "code", source: turn.code }
-    });
-    notebookModel.cells.push(cell);
-  }
-
-  cell.value.text = turn.code;
-  cell.metadata.set("tracepad", {
+  const metadata = {
     turnId: turn.id,
     prompt: turn.prompt,
     language: turn.language,
     parentObjectId: turn.parentObjectId ?? null
-  });
+  };
+
+  if (!cell) {
+    const index = notebookModel.cells.length;
+    notebookModel.sharedModel.insertCell(index, {
+      cell_type: "code",
+      source: turn.code,
+      metadata: { [TRACEPAD_METADATA_KEY]: metadata },
+      outputs: [],
+      execution_count: null
+    });
+    cell = notebookModel.cells.get(index);
+  }
+
+  if (!cell) return null;
+  setCellSource(cell, turn.code);
+  setTracepadCellMetadata(cell, metadata);
   return cell;
 }
 
 export function updateTurnCellMetadata(panel: NotebookPanel, turn: TracepadTurn, object?: TracepadObject): void {
   const notebookModel = panel.content.model as any;
   const cells = notebookModel?.cells?.toArray?.() ?? [];
-  const cell = cells.find((candidate: any) => candidate.metadata?.get("tracepad")?.turnId === turn.id);
+  const cell = cells.find((candidate: any) => tracepadCellMetadata(candidate)?.turnId === turn.id);
   if (!cell) return;
-  cell.metadata.set("tracepad", {
+  setTracepadCellMetadata(cell, {
     turnId: turn.id,
     prompt: turn.prompt,
     language: turn.language,
@@ -99,6 +107,30 @@ export function updateTurnCellMetadata(panel: NotebookPanel, turn: TracepadTurn,
     objectId: object?.id ?? null,
     objectAlias: object?.alias ?? null
   });
+}
+
+function tracepadCellMetadata(cell: any): any {
+  if (typeof cell?.getMetadata === "function") {
+    return cell.getMetadata(TRACEPAD_METADATA_KEY);
+  }
+  return cell?.metadata?.get?.(TRACEPAD_METADATA_KEY)
+    ?? cell?.metadata?.[TRACEPAD_METADATA_KEY];
+}
+
+function setTracepadCellMetadata(cell: any, value: unknown): void {
+  if (typeof cell?.setMetadata === "function") {
+    cell.setMetadata(TRACEPAD_METADATA_KEY, value);
+    return;
+  }
+  cell?.metadata?.set?.(TRACEPAD_METADATA_KEY, value);
+}
+
+function setCellSource(cell: any, source: string): void {
+  if (typeof cell?.sharedModel?.setSource === "function") {
+    cell.sharedModel.setSource(source);
+    return;
+  }
+  if (cell?.value) cell.value.text = source;
 }
 
 function isLanguage(value: unknown): value is TracepadLanguage {
