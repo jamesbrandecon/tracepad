@@ -1,0 +1,19 @@
+.DS_Store
+.env
+.ipynb_checkpoints/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.venv/
+__pycache__/
+*.egg-info/
+*.log
+*.py[cod]
+dist/
+lib/
+node_modules/
+Untitled*.ipynb
+
+# Keep the prebuilt JupyterLab extension so repository installs do not need Node.
+!tracepad/labextension/
+!tracepad/labextension/**

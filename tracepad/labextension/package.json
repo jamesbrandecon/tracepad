@@ -1,0 +1,52 @@
+{
+  "name": "@tracepad/jupyterlab",
+  "version": "0.1.0",
+  "description": "Tracepad full-page JupyterLab interface",
+  "packageManager": "pnpm@10.17.1",
+  "license": "MIT",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "files": [
+    "lib/**/*.{js,js.map,d.ts}",
+    "style/**/*.{css,js,d.ts}",
+    "schema/*.json"
+  ],
+  "scripts": {
+    "build": "rimraf lib tracepad/labextension && tsc -p tsconfig.json && node scripts/build-labextension.mjs",
+    "build:lib": "tsc -p tsconfig.json",
+    "build:labextension": "node scripts/build-labextension.mjs",
+    "clean": "rimraf lib tracepad/labextension",
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run src"
+  },
+  "dependencies": {
+    "@jupyterlab/application": "^4.4.0",
+    "@jupyterlab/apputils": "^4.4.0",
+    "@jupyterlab/cells": "^4.4.0",
+    "@jupyterlab/coreutils": "^6.4.0",
+    "@jupyterlab/docregistry": "^4.4.0",
+    "@jupyterlab/launcher": "^4.4.0",
+    "@jupyterlab/notebook": "^4.4.0",
+    "@jupyterlab/services": "^7.4.0",
+    "@jupyterlab/ui-components": "^4.4.0",
+    "@lumino/widgets": "^2.6.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@jupyterlab/builder": "^4.4.0",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "rimraf": "^6.0.1",
+    "typescript": "~5.6.3",
+    "vitest": "^2.1.8"
+  },
+  "jupyterlab": {
+    "extension": "lib/index.js",
+    "outputDir": "tracepad/labextension",
+    "_build": {
+      "load": "static/remoteEntry.45f3dc4d154135c10e20.js",
+      "extension": "./extension"
+    }
+  }
+}
