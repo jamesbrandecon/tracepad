@@ -22,6 +22,7 @@ dependencies = [
   "jupyterlab>=4.4,<5",
   "jupyter_server>=2.0",
   "jupyter_client>=8.0",
+  "PyYAML>=6.0",
   "traitlets>=5.9"
 ]
 

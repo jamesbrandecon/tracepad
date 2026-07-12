@@ -104,6 +104,7 @@ def guided_notebook() -> dict[str, object]:
             "alias": "orders",
             "kind": "dataframe",
             "parent": None,
+            "inputs": [],
             "prompt": "Load demo/data/retail_orders.csv, inspect its structure, and return the resulting table as orders.",
             "code": """
 from pathlib import Path
@@ -121,6 +122,7 @@ orders
             "alias": "monthly_revenue",
             "kind": "dataframe",
             "parent": "obj-demo-orders",
+            "inputs": ["obj-demo-orders"],
             "prompt": "Using @orders, calculate monthly revenue, order count, and average order value by channel.",
             "code": """
 monthly_revenue = (
@@ -138,6 +140,7 @@ monthly_revenue
             "alias": "revenue_chart",
             "kind": "plot",
             "parent": "obj-demo-monthly",
+            "inputs": ["obj-demo-monthly"],
             "prompt": "Using @monthly_revenue, plot monthly revenue by channel with a clear title and labeled axes.",
             "code": """
 import matplotlib.pyplot as plt
@@ -159,6 +162,7 @@ fig
             "alias": "return_model",
             "kind": "model",
             "parent": "obj-demo-orders",
+            "inputs": ["obj-demo-orders"],
             "prompt": "Using @orders, fit a logistic model predicting whether an order is returned from discount, unit price, delivery time, channel, and category. Return the fitted model.",
             "code": """
 import statsmodels.formula.api as smf
@@ -176,6 +180,7 @@ return_model
             "alias": "return_predictions",
             "kind": "dataframe",
             "parent": "obj-demo-model",
+            "inputs": ["obj-demo-model", "obj-demo-orders"],
             "prompt": "Using @return_model and @orders, score a representative sample and return the orders with their predicted return probabilities.",
             "code": """
 return_predictions = orders.sample(20, random_state=12).copy()
@@ -214,6 +219,7 @@ Run the saved analysis turns from top to bottom. Each result becomes a named, in
             "generationNote": "Guided V1 example; generated code is editable before execution.",
             "outputs": [],
             "outputObjectId": item["object"],
+            "inputObjectIds": item["inputs"],
             "createdAt": STAMP,
             "updatedAt": STAMP,
         }
@@ -234,6 +240,7 @@ Run the saved analysis turns from top to bottom. Each result becomes a named, in
                         "prompt": item["prompt"],
                         "language": "python",
                         "parentObjectId": item["parent"],
+                        "inputObjectIds": item["inputs"],
                         "objectId": item["object"],
                         "objectAlias": item["alias"],
                     }
@@ -260,6 +267,7 @@ def clean_notebook() -> dict[str, object]:
         "language": "python",
         "status": "draft",
         "outputs": [],
+        "inputObjectIds": [],
         "createdAt": STAMP,
         "updatedAt": STAMP,
     }

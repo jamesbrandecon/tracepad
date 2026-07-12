@@ -20,9 +20,16 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
       - run: pnpm test
+      - run: pnpm --dir vscode-extension check
+      - run: pnpm --dir vscode-extension test
+      - run: pnpm --dir vscode-extension package
       - run: pytest -q
       - run: python -m pip wheel . --no-deps --wheel-dir dist
       - uses: actions/upload-artifact@v4
         with:
           name: tracepad-wheel
           path: dist/*.whl
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tracepad-vscode-vsix
+          path: vscode-extension/dist/*.vsix

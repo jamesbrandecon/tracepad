@@ -14,19 +14,6 @@ export function detectLanguage(panel: NotebookPanel): TracepadLanguage {
   return "python";
 }
 
-export async function runTurn(
-  panel: NotebookPanel,
-  turn: TracepadTurn,
-  codeCell: any
-): Promise<{ outputs: TracepadOutput[]; error?: string }> {
-  if (!turn.code.trim()) return { outputs: [], error: "Generate or write code before running this cell." };
-  if (!panel.sessionContext.session?.kernel) {
-    return { outputs: [], error: "Start a kernel for this notebook before running Tracepad code." };
-  }
-  if (codeCell?.outputs?.clear) codeCell.outputs.clear();
-  return requestExecution(panel, turn.code, codeCell);
-}
-
 export async function captureObject(
   panel: NotebookPanel,
   turn: TracepadTurn,
@@ -94,32 +81,24 @@ export async function runInspection(
   return { title: capabilityLabel(capability), outputs: result.outputs, error: result.error };
 }
 
-async function requestExecution(panel: NotebookPanel, code: string, codeCell?: any): Promise<{ outputs: TracepadOutput[]; error?: string }> {
+async function requestExecution(panel: NotebookPanel, code: string): Promise<{ outputs: TracepadOutput[]; error?: string }> {
   const kernel = panel.sessionContext.session?.kernel;
   if (!kernel) return { outputs: [], error: "No active kernel." };
   const outputs: TracepadOutput[] = [];
-  const future = kernel.requestExecute({ code, stop_on_error: true, store_history: true });
+  const future = kernel.requestExecute({ code, stop_on_error: true, store_history: false });
   future.onIOPub = (message: KernelMessage.IIOPubMessage) => {
     const msgType = message.header.msg_type;
     const content = message.content as any;
     if (msgType === "stream") {
       const output: TracepadOutput = { kind: "stream", text: String(content.text ?? "") };
       outputs.push(output);
-      codeCell?.outputs?.add?.({ output_type: "stream", name: content.name ?? "stdout", text: output.text });
     } else if (msgType === "execute_result" || msgType === "display_data") {
       const output: TracepadOutput = { kind: msgType === "execute_result" ? "result" : "display", data: content.data ?? {} };
       outputs.push(output);
-      codeCell?.outputs?.add?.({
-        output_type: msgType,
-        data: content.data ?? {},
-        metadata: content.metadata ?? {},
-        execution_count: content.execution_count ?? null
-      });
     } else if (msgType === "error") {
       const traceback = Array.isArray(content.traceback) ? content.traceback.map(String) : [];
       const output: TracepadOutput = { kind: "error", text: `${content.ename ?? "Error"}: ${content.evalue ?? ""}`, traceback };
       outputs.push(output);
-      codeCell?.outputs?.add?.({ output_type: "error", ename: content.ename ?? "Error", evalue: content.evalue ?? "", traceback });
     }
   };
   try {

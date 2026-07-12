@@ -1,0 +1,59 @@
+# Tracepad model configuration contains no secrets. API keys are read from the
+# environment variable named by each provider's api_key_env setting.
+version: 1
+default_profile: openai-fast
+
+providers:
+  # Built-in providers can be overridden without repeating every field.
+  openai:
+    api_key_env: OPENAI_API_KEY
+
+  openrouter:
+    api_key_env: OPENROUTER_API_KEY
+
+  ollama:
+    base_url: http://127.0.0.1:11434
+    base_url_env: OLLAMA_HOST
+    discover_models: true
+
+  # Add any service exposing an OpenAI-compatible chat-completions endpoint.
+  team-gateway:
+    label: Team model gateway
+    driver: openai-chat
+    base_url: https://models.example.com/v1
+    api_key_env: TEAM_MODEL_API_KEY
+    requires_api_key: true
+
+profiles:
+  openai-fast:
+    label: OpenAI fast
+    provider: openai
+    model: gpt-5.4-mini
+    parameters:
+      max_output_tokens: 1800
+
+  openai-deep:
+    label: OpenAI deep reasoning
+    provider: openai
+    model: gpt-5.4
+    parameters:
+      max_output_tokens: 3000
+      reasoning:
+        effort: high
+
+  local-sql:
+    label: Local SQL model
+    provider: ollama
+    model: qwen2.5-coder:7b
+    parameters:
+      temperature: 0.1
+
+  routed-coder:
+    label: Routed coding model
+    provider: team-gateway
+    model: organization/coder
+    parameters:
+      temperature: 0.1
+      max_tokens: 1800
+      response_format:
+        type: json_object

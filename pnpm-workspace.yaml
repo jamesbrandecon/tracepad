@@ -1,3 +1,8 @@
+packages:
+  - vscode-extension
+
 allowBuilds:
-  '@fortawesome/fontawesome-free': set this to true or false
-  esbuild: set this to true or false
+  '@fortawesome/fontawesome-free': false
+  '@vscode/vsce-sign': false
+  esbuild: true
+  keytar: false

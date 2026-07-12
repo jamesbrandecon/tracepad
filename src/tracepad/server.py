@@ -15,13 +15,14 @@ from jupyter_server.base.handlers import APIHandler
 from jupyter_server.utils import url_path_join
 from tornado.web import authenticated
 
+from .config import ConfigurationError, load_configuration
 
-PROVIDERS = {"ollama", "openai", "openrouter"}
+
 DEFAULT_OLLAMA_URL = "http://127.0.0.1:11434"
 DEFAULT_OPENAI_URL = "https://api.openai.com/v1"
 DEFAULT_OPENROUTER_URL = "https://openrouter.ai/api/v1"
 
-# Keys entered in Tracepad are intentionally process-local. They are never
+# Values entered in Tracepad are intentionally process-local. Keys are never
 # returned to the browser, written to notebooks, or persisted to disk.
 _SESSION_CONFIG: dict[str, str] = {}
 
@@ -29,10 +30,6 @@ _SESSION_CONFIG: dict[str, str] = {}
 def _clean_language(value: object) -> str:
     language = str(value or "python").lower()
     return language if language in {"python", "r", "julia", "sql"} else "python"
-
-
-def _configured(name: str, environment_name: str, default: str = "") -> str:
-    return _SESSION_CONFIG.get(name, os.environ.get(environment_name, default)).strip()
 
 
 def _clean_base_url(value: object, default: str) -> str:
@@ -88,91 +85,159 @@ def _ollama_models(base_url: str) -> tuple[list[str], str | None]:
         return [], str(error)
 
 
-def _provider_status() -> dict[str, Any]:
-    ollama_url = _clean_base_url(
-        _configured("ollama_url", "OLLAMA_HOST", DEFAULT_OLLAMA_URL),
-        DEFAULT_OLLAMA_URL,
+def _resolved_registry() -> dict[str, Any]:
+    configuration, config_files = load_configuration()
+    providers: dict[str, dict[str, Any]] = {}
+    for provider_id, specification in configuration["providers"].items():
+        base_url = _SESSION_CONFIG.get(f"provider:{provider_id}:base_url", "")
+        if not base_url and specification.get("base_url_env"):
+            base_url = os.environ.get(str(specification["base_url_env"]), "")
+        base_url = _clean_base_url(base_url, str(specification.get("base_url", "")))
+
+        api_key = _SESSION_CONFIG.get(f"provider:{provider_id}:api_key", "")
+        if not api_key and specification.get("api_key_env"):
+            api_key = os.environ.get(str(specification["api_key_env"]), "").strip()
+
+        models: list[str] = []
+        discovery_error: str | None = None
+        if specification.get("discover_models"):
+            models, discovery_error = _ollama_models(base_url)
+
+        requires_key = bool(specification.get("requires_api_key"))
+        available = discovery_error is None and (bool(api_key) or not requires_key)
+        error = discovery_error
+        if requires_key and not api_key:
+            error = f"API key not configured in {specification.get('api_key_env') or 'the server environment'}."
+        providers[provider_id] = {
+            **specification,
+            "base_url": base_url,
+            "api_key": api_key,
+            "models": models,
+            "available": available,
+            "error": error,
+        }
+
+    profiles: dict[str, dict[str, Any]] = {}
+    for profile_id, specification in configuration["profiles"].items():
+        provider = providers[specification["provider"]]
+        model = _SESSION_CONFIG.get(f"profile:{profile_id}:model", "")
+        if not model and specification.get("model_env"):
+            model = os.environ.get(str(specification["model_env"]), "").strip()
+        if not model:
+            model = str(specification.get("model", "")).strip()
+        if not model and provider["models"]:
+            model = provider["models"][0]
+        configured = bool(model and provider["available"])
+        error = provider["error"] or (None if model else "A model name is required.")
+        profiles[profile_id] = {
+            **specification,
+            "model": model,
+            "configured": configured,
+            "available": provider["available"],
+            "error": error,
+        }
+
+    requested = _SESSION_CONFIG.get("profile", "").strip()
+    if not requested:
+        requested = os.environ.get("TRACEPAD_PROFILE", "").strip()
+    if not requested:
+        requested = os.environ.get("TRACEPAD_PROVIDER", "").strip()
+    if requested and requested not in profiles:
+        requested = next(
+            (profile_id for profile_id, profile in profiles.items() if profile["provider"] == requested),
+            requested,
+        )
+    if not requested:
+        requested = configuration.get("default_profile", "")
+    if requested and requested not in profiles:
+        raise ConfigurationError(f"Unknown Tracepad profile {requested!r}.")
+    active_profile = requested or next(
+        (profile_id for profile_id, profile in profiles.items() if profile["configured"]),
+        "",
     )
-    ollama_models, ollama_error = _ollama_models(ollama_url)
-    ollama_model = _configured("ollama_model", "TRACEPAD_OLLAMA_MODEL")
-    if not ollama_model and ollama_models:
-        ollama_model = ollama_models[0]
+    return {
+        "providers": providers,
+        "profiles": profiles,
+        "active_profile": active_profile,
+        "config_files": config_files,
+    }
 
-    openai_key = _configured("openai_key", "OPENAI_API_KEY")
-    openai_model = _configured("openai_model", "TRACEPAD_OPENAI_MODEL", "gpt-5.4-mini")
-    openrouter_key = _configured("openrouter_key", "OPENROUTER_API_KEY")
-    openrouter_model = _configured("openrouter_model", "TRACEPAD_OPENROUTER_MODEL")
 
-    providers = [
-        {
-            "id": "ollama",
-            "label": "Ollama",
-            "configured": bool(ollama_model and not ollama_error),
-            "available": ollama_error is None,
-            "model": ollama_model,
-            "models": ollama_models,
-            "base_url": ollama_url,
-            "error": ollama_error,
-        },
-        {
-            "id": "openai",
-            "label": "OpenAI",
-            "configured": bool(openai_key and openai_model),
-            "available": bool(openai_key),
-            "model": openai_model,
-            "models": [],
-            "base_url": DEFAULT_OPENAI_URL,
-            "error": None if openai_key else "API key not configured.",
-        },
-        {
-            "id": "openrouter",
-            "label": "OpenRouter",
-            "configured": bool(openrouter_key and openrouter_model),
-            "available": bool(openrouter_key),
-            "model": openrouter_model,
-            "models": [],
-            "base_url": DEFAULT_OPENROUTER_URL,
-            "error": None if openrouter_key else "API key not configured.",
-        },
-    ]
-
-    requested = _configured("provider", "TRACEPAD_PROVIDER").lower()
-    by_id = {provider["id"]: provider for provider in providers}
-    if requested in PROVIDERS:
-        active = requested
-    else:
-        active = next((provider["id"] for provider in providers if provider["configured"]), "")
-    active_entry = by_id.get(active)
-    ready = bool(active_entry and active_entry["configured"])
+def _provider_status() -> dict[str, Any]:
+    registry = _resolved_registry()
+    active_profile_id = registry["active_profile"]
+    active_profile = registry["profiles"].get(active_profile_id)
+    providers = []
+    for provider_id, provider in registry["providers"].items():
+        provider_profiles = [
+            profile for profile in registry["profiles"].values() if profile["provider"] == provider_id
+        ]
+        provider_models = list(dict.fromkeys([
+            *provider["models"],
+            *(profile["model"] for profile in provider_profiles if profile["model"]),
+        ]))
+        providers.append({
+            "id": provider_id,
+            "label": provider["label"],
+            "driver": provider["driver"],
+            "configured": any(profile["configured"] for profile in provider_profiles),
+            "available": provider["available"],
+            "model": provider_profiles[0]["model"] if provider_profiles else "",
+            "models": provider_models,
+            "base_url": provider["base_url"],
+            "requires_api_key": provider["requires_api_key"],
+            "error": provider["error"],
+        })
+    profiles = [{
+        "id": profile_id,
+        "label": profile["label"],
+        "provider": profile["provider"],
+        "model": profile["model"],
+        "configured": profile["configured"],
+        "available": profile["available"],
+        "error": profile["error"],
+    } for profile_id, profile in registry["profiles"].items()]
+    ready = bool(active_profile and active_profile["configured"])
     return {
         "ok": True,
         "ready": ready,
-        "active_provider": active or None,
-        "active_model": active_entry["model"] if ready and active_entry else None,
+        "active_profile": active_profile_id or None,
+        "active_provider": active_profile["provider"] if active_profile else None,
+        "active_model": active_profile["model"] if ready else None,
         "providers": providers,
+        "profiles": profiles,
+        "config_files": registry["config_files"],
     }
 
 
 def _configure_provider(body: dict[str, Any]) -> dict[str, Any]:
-    provider = str(body.get("provider", "")).strip().lower()
-    if provider not in PROVIDERS:
-        raise RuntimeError("Choose Ollama, OpenAI, or OpenRouter.")
+    registry = _resolved_registry()
+    profile_id = str(body.get("profile", "")).strip()
+    legacy_provider = str(body.get("provider", "")).strip()
+    if not profile_id and legacy_provider:
+        profile_id = legacy_provider if legacy_provider in registry["profiles"] else next(
+            (key for key, profile in registry["profiles"].items() if profile["provider"] == legacy_provider),
+            "",
+        )
+    if profile_id not in registry["profiles"]:
+        raise RuntimeError("Choose a configured Tracepad model profile.")
 
+    profile = registry["profiles"][profile_id]
+    provider_id = profile["provider"]
     model = str(body.get("model", "")).strip()
     if model:
-        _SESSION_CONFIG[f"{provider}_model"] = model
-    if provider == "ollama" and "base_url" in body:
-        _SESSION_CONFIG["ollama_url"] = _clean_base_url(body.get("base_url"), DEFAULT_OLLAMA_URL)
+        _SESSION_CONFIG[f"profile:{profile_id}:model"] = model
+    if "base_url" in body and str(body.get("base_url", "")).strip():
+        _SESSION_CONFIG[f"provider:{provider_id}:base_url"] = _clean_base_url(body["base_url"], "")
     api_key = str(body.get("api_key", "")).strip()
-    if api_key and provider in {"openai", "openrouter"}:
-        _SESSION_CONFIG[f"{provider}_key"] = api_key
-    _SESSION_CONFIG["provider"] = provider
+    if api_key:
+        _SESSION_CONFIG[f"provider:{provider_id}:api_key"] = api_key
+    _SESSION_CONFIG["profile"] = profile_id
 
     status = _provider_status()
     if not status["ready"]:
-        selected = next(item for item in status["providers"] if item["id"] == provider)
-        message = selected.get("error") or "A model name is required."
-        raise RuntimeError(str(message))
+        selected = next(item for item in status["profiles"] if item["id"] == profile_id)
+        raise RuntimeError(str(selected.get("error") or "A model name is required."))
     return status
 
 
@@ -189,13 +254,11 @@ def _system_instructions() -> str:
 
 
 def _generation_input(prompt: str, language: str, context: Dict[str, Any]) -> str:
-    return "\n".join(
-        [
-            f"Kernel language: {language}",
-            f"User request: {prompt}",
-            f"Notebook context: {json.dumps(context, ensure_ascii=True)}",
-        ]
-    )
+    return "\n".join([
+        f"Kernel language: {language}",
+        f"User request: {prompt}",
+        f"Notebook context: {json.dumps(context, ensure_ascii=True)}",
+    ])
 
 
 def _parse_generation(raw: str, provider: str) -> dict[str, str]:
@@ -212,21 +275,56 @@ def _parse_generation(raw: str, provider: str) -> dict[str, str]:
     return {"code": code, "notes": str(result.get("notes", "Generated by AI."))}
 
 
-def _openai_generation(prompt: str, language: str, context: Dict[str, Any], model: str) -> dict[str, str]:
-    api_key = _configured("openai_key", "OPENAI_API_KEY")
-    payload = _json_request(
-        f"{DEFAULT_OPENAI_URL}/responses",
+def _apply_parameters(
+    payload: dict[str, Any],
+    parameters: dict[str, Any],
+    protected: set[str],
+) -> dict[str, Any]:
+    for key, value in parameters.items():
+        if key in protected:
+            continue
+        if value is None:
+            payload.pop(key, None)
+        else:
+            payload[key] = value
+    return payload
+
+
+def _provider_headers(provider: dict[str, Any]) -> dict[str, str]:
+    headers = dict(provider.get("headers", {}))
+    if provider.get("api_key"):
+        headers["Authorization"] = f"Bearer {provider['api_key']}"
+    return headers
+
+
+def _openai_generation(
+    prompt: str,
+    language: str,
+    context: Dict[str, Any],
+    model: str,
+    *,
+    provider: dict[str, Any] | None = None,
+    parameters: dict[str, Any] | None = None,
+) -> dict[str, str]:
+    runtime = provider or {
+        "label": "OpenAI",
+        "base_url": DEFAULT_OPENAI_URL,
+        "api_key": os.environ.get("OPENAI_API_KEY", ""),
+        "headers": {},
+    }
+    payload = _apply_parameters({
+        "model": model,
+        "instructions": _system_instructions(),
+        "input": _generation_input(prompt, language, context),
+    }, parameters or {}, {"model", "instructions", "input"})
+    response = _json_request(
+        f"{runtime['base_url']}/{runtime.get('endpoint', 'responses').lstrip('/')}",
         method="POST",
-        payload={
-            "model": model,
-            "instructions": _system_instructions(),
-            "input": _generation_input(prompt, language, context),
-            "max_output_tokens": 1800,
-        },
-        headers={"Authorization": f"Bearer {api_key}"},
+        payload=payload,
+        headers=_provider_headers(runtime),
     )
     pieces: list[str] = []
-    for item in payload.get("output", []):
+    for item in response.get("output", []):
         if not isinstance(item, dict):
             continue
         for part in item.get("content", []):
@@ -234,37 +332,71 @@ def _openai_generation(prompt: str, language: str, context: Dict[str, Any], mode
                 text = part.get("text") or part.get("output_text")
                 if isinstance(text, str):
                     pieces.append(text)
-    return _parse_generation("\n".join(pieces), "OpenAI")
+    return _parse_generation("\n".join(pieces), str(runtime["label"]))
 
 
-def _openrouter_generation(prompt: str, language: str, context: Dict[str, Any], model: str) -> dict[str, str]:
-    api_key = _configured("openrouter_key", "OPENROUTER_API_KEY")
-    payload = _json_request(
-        f"{DEFAULT_OPENROUTER_URL}/chat/completions",
+def _chat_generation(
+    prompt: str,
+    language: str,
+    context: Dict[str, Any],
+    model: str,
+    *,
+    provider: dict[str, Any],
+    parameters: dict[str, Any],
+) -> dict[str, str]:
+    payload = _apply_parameters({
+        "model": model,
+        "messages": [
+            {"role": "system", "content": _system_instructions()},
+            {"role": "user", "content": _generation_input(prompt, language, context)},
+        ],
+    }, parameters, {"model", "messages"})
+    response = _json_request(
+        f"{provider['base_url']}/{provider.get('endpoint', 'chat/completions').lstrip('/')}",
         method="POST",
-        payload={
-            "model": model,
-            "messages": [
-                {"role": "system", "content": _system_instructions()},
-                {"role": "user", "content": _generation_input(prompt, language, context)},
-            ],
-            "response_format": {"type": "json_object"},
-            "temperature": 0.1,
-            "max_tokens": 1800,
-        },
-        headers={
-            "Authorization": f"Bearer {api_key}",
-            "HTTP-Referer": "https://github.com/tracepad/tracepad",
-            "X-Title": "Tracepad",
-        },
+        payload=payload,
+        headers=_provider_headers(provider),
     )
-    choices = payload.get("choices", [])
+    choices = response.get("choices", [])
     content = choices[0].get("message", {}).get("content", "") if choices and isinstance(choices[0], dict) else ""
-    return _parse_generation(str(content), "OpenRouter")
+    return _parse_generation(str(content), str(provider["label"]))
 
 
-def _ollama_generation(prompt: str, language: str, context: Dict[str, Any], model: str, base_url: str) -> dict[str, str]:
-    payload = _json_request(
+def _openrouter_generation(
+    prompt: str,
+    language: str,
+    context: Dict[str, Any],
+    model: str,
+    *,
+    provider: dict[str, Any] | None = None,
+    parameters: dict[str, Any] | None = None,
+) -> dict[str, str]:
+    runtime = provider or {
+        "label": "OpenRouter",
+        "base_url": DEFAULT_OPENROUTER_URL,
+        "api_key": os.environ.get("OPENROUTER_API_KEY", ""),
+        "headers": {"HTTP-Referer": "https://github.com/tracepad/tracepad", "X-Title": "Tracepad"},
+    }
+    return _chat_generation(
+        prompt,
+        language,
+        context,
+        model,
+        provider=runtime,
+        parameters=parameters or {},
+    )
+
+
+def _ollama_generation(
+    prompt: str,
+    language: str,
+    context: Dict[str, Any],
+    model: str,
+    base_url: str,
+    *,
+    parameters: dict[str, Any] | None = None,
+) -> dict[str, str]:
+    response = _json_request(
         f"{base_url}/api/chat",
         method="POST",
         payload={
@@ -275,28 +407,36 @@ def _ollama_generation(prompt: str, language: str, context: Dict[str, Any], mode
                 {"role": "system", "content": _system_instructions()},
                 {"role": "user", "content": _generation_input(prompt, language, context)},
             ],
-            "options": {"temperature": 0.1},
+            "options": parameters or {},
         },
     )
-    content = payload.get("message", {}).get("content", "") if isinstance(payload.get("message"), dict) else ""
+    content = response.get("message", {}).get("content", "") if isinstance(response.get("message"), dict) else ""
     return _parse_generation(str(content), "Ollama")
 
 
 def _generate(prompt: str, language: str, context: Dict[str, Any]) -> dict[str, str]:
-    status = _provider_status()
-    if not status["ready"]:
-        raise RuntimeError("Configure Ollama, OpenAI, or OpenRouter before generating code.")
-    provider = str(status["active_provider"])
-    model = str(status["active_model"])
-    selected = next(item for item in status["providers"] if item["id"] == provider)
+    registry = _resolved_registry()
+    profile_id = registry["active_profile"]
+    profile = registry["profiles"].get(profile_id)
+    if not profile or not profile["configured"]:
+        raise RuntimeError("Configure a Tracepad model profile before generating code.")
+    provider = registry["providers"][profile["provider"]]
+    model = str(profile["model"])
+    parameters = dict(profile.get("parameters", {}))
 
-    if provider == "openai":
-        result = _openai_generation(prompt, language, context, model)
-    elif provider == "openrouter":
-        result = _openrouter_generation(prompt, language, context, model)
+    if provider["driver"] == "openai-responses":
+        result = _openai_generation(
+            prompt, language, context, model, provider=provider, parameters=parameters
+        )
+    elif provider["driver"] == "openai-chat":
+        result = _chat_generation(
+            prompt, language, context, model, provider=provider, parameters=parameters
+        )
     else:
-        result = _ollama_generation(prompt, language, context, model, str(selected["base_url"]))
-    return {**result, "provider": f"{provider} ({model})"}
+        result = _ollama_generation(
+            prompt, language, context, model, provider["base_url"], parameters=parameters
+        )
+    return {**result, "provider": f"{profile['label']} ({model})"}
 
 
 class ProvidersHandler(APIHandler):
@@ -304,7 +444,11 @@ class ProvidersHandler(APIHandler):
 
     @authenticated
     async def get(self) -> None:
-        self.finish(await asyncio.to_thread(_provider_status))
+        try:
+            self.finish(await asyncio.to_thread(_provider_status))
+        except RuntimeError as error:
+            self.set_status(500)
+            self.finish({"ok": False, "error": str(error)})
 
     @authenticated
     async def post(self) -> None:

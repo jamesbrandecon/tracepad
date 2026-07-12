@@ -1,0 +1,216 @@
+{
+  "name": "tracepad-vscode",
+  "displayName": "Tracepad",
+  "description": "AI-first turns for native Jupyter notebooks in VS Code",
+  "version": "0.3.6",
+  "publisher": "tracepad",
+  "private": true,
+  "icon": "media/tracepad-logo.png",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jamesbrandecon/tracepad.git"
+  },
+  "engines": {
+    "vscode": "^1.95.0"
+  },
+  "categories": [
+    "Machine Learning",
+    "Notebooks"
+  ],
+  "extensionDependencies": [
+    "ms-toolsai.jupyter"
+  ],
+  "main": "./dist/extension.js",
+  "activationEvents": [
+    "onNotebook:jupyter-notebook",
+    "onCommand:tracepad.addTurn",
+    "onCommand:tracepad.generate",
+    "onRenderer:tracepad.resultRenderer"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "tracepad.addTurn",
+        "title": "Tracepad: Add AI Prompt",
+        "shortTitle": "AI Prompt",
+        "icon": "$(comment-discussion)"
+      },
+      {
+        "command": "tracepad.generate",
+        "title": "Tracepad: Generate Code",
+        "shortTitle": "Generate",
+        "icon": "$(sparkle)"
+      },
+      {
+        "command": "tracepad.generateAndRun",
+        "title": "Tracepad: Generate and Run",
+        "shortTitle": "Generate & Run"
+      },
+      {
+        "command": "tracepad.generateRunAndInsert",
+        "title": "Tracepad: Generate, Run, and Add Prompt"
+      },
+      {
+        "command": "tracepad.fixWithAI",
+        "title": "Tracepad: Fix Failed Cell with AI"
+      },
+      {
+        "command": "tracepad.exploreResult",
+        "title": "Tracepad: Explore Result"
+      },
+      {
+        "command": "tracepad.insertReference",
+        "title": "Tracepad: Insert Result Reference"
+      },
+      {
+        "command": "tracepad.removeEmptyTurn",
+        "title": "Tracepad: Remove Empty Turn"
+      },
+      {
+        "command": "tracepad.renameResult",
+        "title": "Tracepad: Rename Result",
+        "icon": "$(edit)"
+      },
+      {
+        "command": "tracepad.showLineage",
+        "title": "Tracepad: Show Result Lineage"
+      },
+      {
+        "command": "tracepad.selectProfile",
+        "title": "Tracepad: Select Model",
+        "shortTitle": "Model",
+        "icon": "$(settings-gear)"
+      },
+      {
+        "command": "tracepad.configureCredential",
+        "title": "Tracepad: Configure Provider Credentials"
+      },
+      {
+        "command": "tracepad.showDiagnostics",
+        "title": "Tracepad: Show Diagnostics"
+      }
+    ],
+    "menus": {
+      "notebook/toolbar": [
+        {
+          "command": "tracepad.addTurn",
+          "when": "notebookType == jupyter-notebook",
+          "group": "navigation/add@0"
+        },
+        {
+          "command": "tracepad.selectProfile",
+          "when": "notebookType == jupyter-notebook",
+          "group": "navigation/add@1"
+        }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "tracepad.generate",
+        "key": "alt+t g",
+        "mac": "alt+t g",
+        "when": "notebookEditorFocused && notebookType == jupyter-notebook"
+      },
+      {
+        "command": "tracepad.generateAndRun",
+        "key": "alt+t r",
+        "mac": "alt+t r",
+        "when": "notebookEditorFocused && notebookType == jupyter-notebook"
+      },
+      {
+        "command": "tracepad.exploreResult",
+        "key": "alt+t e",
+        "mac": "alt+t e",
+        "when": "notebookEditorFocused && notebookType == jupyter-notebook"
+      },
+      {
+        "command": "tracepad.generateRunAndInsert",
+        "key": "alt+t n",
+        "mac": "alt+t n",
+        "when": "notebookEditorFocused && notebookType == jupyter-notebook"
+      },
+      {
+        "command": "tracepad.showLineage",
+        "key": "alt+t l",
+        "mac": "alt+t l",
+        "when": "notebookEditorFocused && notebookType == jupyter-notebook"
+      },
+      {
+        "command": "tracepad.insertReference",
+        "key": "alt+t i",
+        "mac": "alt+t i",
+        "when": "notebookEditorFocused && notebookType == jupyter-notebook"
+      },
+      {
+        "command": "tracepad.renameResult",
+        "key": "alt+t a",
+        "mac": "alt+t a",
+        "when": "notebookEditorFocused && notebookType == jupyter-notebook"
+      },
+      {
+        "command": "tracepad.addTurn",
+        "key": "alt+t p",
+        "mac": "alt+t p",
+        "when": "notebookEditorFocused && notebookType == jupyter-notebook"
+      },
+      {
+        "command": "tracepad.selectProfile",
+        "key": "alt+t m",
+        "mac": "alt+t m",
+        "when": "notebookEditorFocused && notebookType == jupyter-notebook"
+      }
+    ],
+    "notebookRenderer": [
+      {
+        "id": "tracepad.resultRenderer",
+        "displayName": "Tracepad Result",
+        "entrypoint": "./dist/renderer.js",
+        "mimeTypes": [
+          "application/vnd.tracepad.result+json"
+        ],
+        "requiresMessaging": "optional"
+      }
+    ],
+    "configuration": {
+      "title": "Tracepad",
+      "properties": {
+        "tracepad.profile": {
+          "type": "string",
+          "default": "",
+          "scope": "resource",
+          "description": "Named model profile from Tracepad YAML. Empty uses YAML or environment defaults."
+        },
+        "tracepad.configPath": {
+          "type": "string",
+          "default": "",
+          "scope": "resource",
+          "description": "Optional Tracepad YAML path. Relative paths resolve from the workspace root."
+        },
+        "tracepad.collapseCodeAfterRun": {
+          "type": "boolean",
+          "default": true,
+          "scope": "resource",
+          "description": "Collapse generated code after a successful Tracepad Generate and Run action. Code remains available through VS Code's native cell expander."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "node esbuild.mjs",
+    "check": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "package": "pnpm build && vsce package --no-dependencies -o dist/tracepad-vscode.vsix"
+  },
+  "dependencies": {
+    "yaml": "^2.8.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/vscode": "^1.95.0",
+    "@vscode/vsce": "^3.6.2",
+    "esbuild": "^0.25.0",
+    "typescript": "~5.6.3",
+    "vitest": "^2.1.9"
+  }
+}

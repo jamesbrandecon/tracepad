@@ -11,7 +11,9 @@ import {
 } from "@jupyterlab/notebook";
 import { notebookIcon } from "@jupyterlab/ui-components";
 import { BoxLayout } from "@lumino/widgets";
+import { Component, type ErrorInfo, type ReactNode } from "react";
 import { TracepadApp } from "./TracepadApp";
+import { JupyterNotebookHost } from "./jupyter/notebookHost";
 
 const TRACEPAD_FACTORY = "Tracepad";
 const OPEN_CURRENT_COMMAND = "tracepad:open-current";
@@ -19,18 +21,49 @@ const NEW_NOTEBOOK_COMMAND = "tracepad:new-notebook";
 
 const tracepadViews = new WeakMap<NotebookPanel, () => void>();
 
+class TracepadErrorBoundary extends Component<{ children: ReactNode }, { error?: Error }> {
+  state: { error?: Error } = {};
+
+  static getDerivedStateFromError(error: Error): { error: Error } {
+    return { error };
+  }
+
+  componentDidCatch(error: Error, info: ErrorInfo): void {
+    console.error("Tracepad render failed", error, info.componentStack);
+  }
+
+  render(): ReactNode {
+    if (this.state.error) {
+      return (
+        <section className="tp-fatal-error" role="alert">
+          <h2>Tracepad could not render this notebook</h2>
+          <pre>{this.state.error.message}</pre>
+        </section>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 class TracepadWidget extends ReactWidget {
+  private readonly host: JupyterNotebookHost;
+
   constructor(
     readonly panel: NotebookPanel,
     private readonly openClassic: () => void | Promise<void>
   ) {
     super();
+    this.host = new JupyterNotebookHost(panel);
     this.addClass("jp-TracepadWidget");
     this.node.tabIndex = 0;
   }
 
   render(): JSX.Element {
-    return <TracepadApp panel={this.panel} onOpenClassic={this.openClassic} />;
+    return (
+      <TracepadErrorBoundary>
+        <TracepadApp host={this.host} onOpenClassic={this.openClassic} />
+      </TracepadErrorBoundary>
+    );
   }
 }
 
@@ -118,6 +151,13 @@ const plugin: JupyterFrontEndPlugin<void> = {
       toolbarFactory: () => []
     });
     app.docRegistry.addWidgetFactory(tracepadFactory);
+    app.docRegistry.setDefaultWidgetFactory("notebook", TRACEPAD_FACTORY);
+
+    const attachTrackedPanel = (panel: NotebookPanel) => {
+      void panel.context.ready.then(() => attachTracepad(panel));
+    };
+    notebooks?.widgetAdded.connect((_sender, panel) => attachTrackedPanel(panel));
+    void app.restored.then(() => notebooks?.forEach(attachTrackedPanel));
 
     app.commands.addCommand(OPEN_CURRENT_COMMAND, {
       label: "Open Notebook in Tracepad",
