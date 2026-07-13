@@ -2,7 +2,7 @@
   "name": "tracepad-vscode",
   "displayName": "Tracepad",
   "description": "AI-first turns for native Jupyter notebooks in VS Code",
-  "version": "0.3.6",
+  "version": "0.3.7",
   "publisher": "tracepad",
   "private": true,
   "icon": "media/tracepad-logo.png",

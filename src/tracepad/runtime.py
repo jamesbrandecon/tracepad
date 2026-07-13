@@ -33,11 +33,23 @@ def display_result(
     return payload
 
 
-def present(value: Any, *, alias: str, turn: str, turn_id: str) -> None:
-    """Display a Tracepad result without adding a second expression output."""
+def present(
+    value: Any,
+    *,
+    name: str | None = None,
+    alias: str | None = None,
+    turn: str = "",
+    turn_id: str = "",
+) -> None:
+    """Display a named Tracepad result without adding a second expression output.
+
+    ``alias``, ``turn``, and ``turn_id`` remain accepted for notebooks generated
+    by older Tracepad releases. New code only needs ``name``.
+    """
+    result_name = (name or alias or "result").strip() or "result"
     display_result(
         value,
-        alias=alias,
+        alias=result_name,
         runtime_name="",
         turn_id=turn_id,
         turn_number=turn,
@@ -60,11 +72,13 @@ def serialize_result(
         "kind": "value",
         "alias": alias,
         "runtimeName": runtime_name,
-        "turnId": turn_id,
-        "turnNumber": turn_number,
         "typeName": getattr(value_type, "__name__", str(value_type)),
         "module": module,
     }
+    if turn_id:
+        payload["turnId"] = turn_id
+    if turn_number:
+        payload["turnNumber"] = turn_number
 
     figure = getattr(value, "figure", value) if module.startswith("matplotlib") else None
     if figure is not None and hasattr(figure, "savefig"):

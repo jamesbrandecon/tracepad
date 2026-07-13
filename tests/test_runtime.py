@@ -1,6 +1,33 @@
 import pandas as pd
 
-from tracepad.runtime import RESULT_MIME, serialize_result
+from tracepad import runtime
+from tracepad.runtime import RESULT_MIME, present, serialize_result
+
+
+def test_present_only_requires_a_public_result_name(monkeypatch):
+    captured = {}
+
+    def fake_display_result(value, **metadata):
+        captured.update(metadata)
+        return {}
+
+    monkeypatch.setattr(runtime, "display_result", fake_display_result)
+    present(object(), name="orders")
+
+    assert captured["alias"] == "orders"
+    assert captured["turn_id"] == ""
+    assert captured["turn_number"] == ""
+
+
+def test_present_accepts_legacy_identity_fields(monkeypatch):
+    captured = {}
+    monkeypatch.setattr(runtime, "display_result", lambda value, **metadata: captured.update(metadata))
+
+    present(object(), alias="orders", turn="1", turn_id="turn-1")
+
+    assert captured["alias"] == "orders"
+    assert captured["turn_id"] == "turn-1"
+    assert captured["turn_number"] == "1"
 
 
 def test_serializes_dataframe_preview():

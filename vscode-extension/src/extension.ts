@@ -118,8 +118,14 @@ async function handleRendererMessage(
     : {};
   const turnId = typeof message.turnId === "string" ? message.turnId : "";
   const cell = turnId
-    ? editor.notebook.getCells().find(candidate => tracepadMetadata(candidate.metadata)?.turnId === turnId
-      && tracepadMetadata(candidate.metadata)?.role === "code")
+    ? editor.notebook.getCells().find(candidate => {
+      const metadata = tracepadMetadata(candidate.metadata);
+      return metadata?.role === "code" && (
+        metadata.turnId === turnId
+        || metadata.alias === turnId
+        || metadata.aliases?.includes(turnId)
+      );
+    })
     : undefined;
   if (!cell) return;
   const metadata = tracepadMetadata(cell.metadata);
@@ -783,9 +789,7 @@ async function generatePromptCell(
     const alias = existingCodeMetadata?.alias ?? `result_${metadata.turnNumber.replace(/\./g, "_")}`;
     const presentedSource = appendResultBridge(result.code, language, {
       alias,
-      runtimeName,
-      turnId: metadata.turnId,
-      turnNumber: metadata.turnNumber
+      runtimeName
     });
     const generatedSourceHash = contentHash(stripResultBridge(presentedSource));
     const dependencyMetadata = selectedReferences.map(reference => ({ ...reference }));
@@ -996,6 +1000,13 @@ async function renameResult(target: unknown): Promise<void> {
     void vscode.window.showErrorMessage(`@${alias} is already used by another Tracepad result.`);
     return;
   }
+  if (metadata.runtimeName) {
+    const source = appendResultBridge(cell.document.getText(), cell.document.languageId, {
+      alias,
+      runtimeName: metadata.runtimeName
+    });
+    if (source !== cell.document.getText()) await replaceCellSource(cell, source);
+  }
   await updateCellMetadata(cell, {
     ...metadata,
     alias,
@@ -1003,7 +1014,12 @@ async function renameResult(target: unknown): Promise<void> {
   });
   if (resultRendererMessaging) {
     const editor = vscode.window.visibleNotebookEditors.find(candidate => candidate.notebook === cell.notebook);
-    await resultRendererMessaging.postMessage({ type: "aliasUpdated", turnId: metadata.turnId, alias }, editor);
+    await resultRendererMessaging.postMessage({
+      type: "aliasUpdated",
+      turnId: metadata.turnId,
+      previousAlias: metadata.alias,
+      alias
+    }, editor);
   }
 }
 

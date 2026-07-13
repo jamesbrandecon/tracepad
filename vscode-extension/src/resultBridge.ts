@@ -4,8 +4,6 @@ export const TRACEPAD_RESULT_MARKER = "# Tracepad result";
 export interface ResultBridgeOptions {
   alias: string;
   runtimeName: string;
-  turnId: string;
-  turnNumber: string;
 }
 
 export function stripResultBridge(source: string): string {
@@ -25,9 +23,7 @@ export function appendResultBridge(
 
   const argumentsValue = [
     options.runtimeName,
-    `alias=${JSON.stringify(options.alias)}`,
-    `turn=${JSON.stringify(options.turnNumber)}`,
-    `turn_id=${JSON.stringify(options.turnId)}`
+    `name=${JSON.stringify(options.alias)}`
   ].join(", ");
 
   const withoutTrailingResult = cleanSource
@@ -37,9 +33,9 @@ export function appendResultBridge(
     .trimEnd();
 
   return `${withoutTrailingResult}\n\ntry:  ${TRACEPAD_RESULT_MARKER}
-    from tracepad.runtime import present as _tracepad_present
+    from tracepad import present
 except ImportError:
-    _tracepad_present = lambda value, **_: value
-_tracepad_present(${argumentsValue})
+    present = lambda value, **_: value
+present(${argumentsValue})
 `;
 }

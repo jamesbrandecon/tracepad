@@ -34,10 +34,11 @@ export function activate(context: TracepadRendererContext) {
     const message = messageRecord(event);
     if (message.type !== "aliasUpdated" || typeof message.turnId !== "string" || typeof message.alias !== "string") return;
     const turnId = message.turnId;
+    const previousAlias = typeof message.previousAlias === "string" ? message.previousAlias : "";
     const aliasValue = message.alias;
     document.querySelectorAll("[data-tracepad-turn-id]").forEach(candidate => {
       const element = candidate as HTMLElement;
-      if (element.dataset.tracepadTurnId !== turnId) return;
+      if (element.dataset.tracepadTurnId !== turnId && element.dataset.alias !== previousAlias) return;
       element.dataset.alias = aliasValue;
       const alias = element.querySelector("[data-tracepad-alias]") as HTMLElement | null;
       if (alias) alias.textContent = `@${aliasValue}`;
@@ -240,9 +241,10 @@ function numberFormat(value: number): string {
 function parsePayload(value: unknown): TracepadResultPayload {
   if (!value || typeof value !== "object") throw new Error("Tracepad result output is not a JSON object.");
   const payload = value as TracepadResultPayload;
-  if (payload.version !== 1 || !payload.turnId || !payload.alias) {
+  if (payload.version !== 1 || !payload.alias) {
     throw new Error("Tracepad result output uses an unsupported schema.");
   }
+  payload.turnId ||= payload.alias;
   return payload;
 }
 

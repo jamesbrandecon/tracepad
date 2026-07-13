@@ -55,7 +55,7 @@ describe("VS Code demo notebook", () => {
       };
     };
     const keybindings = new Map(manifest.contributes.keybindings.map(item => [item.command, item]));
-    expect(manifest.version).toBe("0.3.6");
+    expect(manifest.version).toBe("0.3.7");
     expect((manifest as { icon?: string }).icon).toBe("media/tracepad-logo.png");
     expect(manifest.contributes.configuration.properties["tracepad.collapseGeneratedCode"]?.default).toBe(true);
     expect(keybindings.get("tracepad.generate")).toMatchObject({ key: "alt+t g" });
