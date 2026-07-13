@@ -42,7 +42,7 @@ export interface RegistryOptions {
 
 const DEFAULT_CONFIGURATION: Record<string, unknown> = {
   version: 1,
-  default_profile: "openai",
+  default_profile: "",
   providers: {
     ollama: {
       label: "Ollama",
@@ -76,25 +76,21 @@ const DEFAULT_CONFIGURATION: Record<string, unknown> = {
       provider: "ollama",
       model: "",
       model_env: "TRACEPAD_OLLAMA_MODEL",
-      parameters: { temperature: 0.1 }
+      parameters: {}
     },
     openai: {
       label: "OpenAI",
       provider: "openai",
-      model: "gpt-5.4-mini",
+      model: "",
       model_env: "TRACEPAD_OPENAI_MODEL",
-      parameters: { max_output_tokens: 1800 }
+      parameters: {}
     },
     openrouter: {
       label: "OpenRouter",
       provider: "openrouter",
       model: "",
       model_env: "TRACEPAD_OPENROUTER_MODEL",
-      parameters: {
-        temperature: 0.1,
-        max_tokens: 1800,
-        response_format: { type: "json_object" }
-      }
+      parameters: {}
     }
   }
 };
@@ -179,12 +175,7 @@ export function loadProviderRegistry(options: RegistryOptions = {}): ProviderReg
   if (activeProfile && !profiles[activeProfile]) {
     activeProfile = Object.values(profiles).find(profile => profile.provider === activeProfile)?.id ?? activeProfile;
   }
-  if (!activeProfile) {
-    activeProfile = Object.values(profiles).find(profile => profileReady(profile, providers, environment))?.id
-      ?? Object.keys(profiles)[0]
-      ?? "";
-  }
-  if (!profiles[activeProfile]) throw new Error(`Unknown Tracepad profile ${activeProfile || "(empty)"}.`);
+  if (activeProfile && !profiles[activeProfile]) throw new Error(`Unknown Tracepad profile ${activeProfile}.`);
 
   return { providers, profiles, activeProfile, loadedFiles, environment };
 }
@@ -195,7 +186,6 @@ export function discoverConfigurationRoot(startDirectory: string): string {
   while (true) {
     if (
       existsSync(join(current, "tracepad.yaml"))
-      || existsSync(join(current, "tracepad.example.yaml"))
       || existsSync(join(current, "pyproject.toml"))
     ) return current;
     const parent = dirname(current);

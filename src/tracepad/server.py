@@ -151,10 +151,7 @@ def _resolved_registry() -> dict[str, Any]:
         requested = configuration.get("default_profile", "")
     if requested and requested not in profiles:
         raise ConfigurationError(f"Unknown Tracepad profile {requested!r}.")
-    active_profile = requested or next(
-        (profile_id for profile_id, profile in profiles.items() if profile["configured"]),
-        "",
-    )
+    active_profile = requested
     return {
         "providers": providers,
         "profiles": profiles,

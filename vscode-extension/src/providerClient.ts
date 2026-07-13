@@ -24,6 +24,7 @@ export async function generateCode(
   signal?: AbortSignal
 ): Promise<GenerationResult> {
   const profile = registry.profiles[registry.activeProfile];
+  if (!profile) throw new Error("Select a Tracepad model profile before generating code.");
   const provider = registry.providers[profile.provider];
   let model = profile.model;
   if (!model && provider.driver === "ollama-chat") {

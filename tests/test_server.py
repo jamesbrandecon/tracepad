@@ -42,12 +42,12 @@ def test_generation_parser_rejects_empty_code():
         server._parse_generation('{"code":""}', "Test")
 
 
-def test_ollama_is_auto_selected_when_reachable(monkeypatch):
+def test_ollama_is_detected_but_requires_selection(monkeypatch):
     monkeypatch.setattr(server, "_ollama_models", lambda _url: (["qwen2.5-coder:7b", "llama3.2:3b"], None))
     status = server._provider_status()
-    assert status["ready"] is True
-    assert status["active_provider"] == "ollama"
-    assert status["active_model"] == "qwen2.5-coder:7b"
+    assert status["ready"] is False
+    assert status["active_provider"] is None
+    assert status["active_model"] is None
     assert status["providers"][0]["models"] == ["qwen2.5-coder:7b", "llama3.2:3b"]
 
 

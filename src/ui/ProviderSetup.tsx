@@ -15,9 +15,9 @@ export function ProviderSetup({
   onClose: () => void;
 }) {
   const initialProfile = status.active_profile
-    ?? status.profiles.find(profile => profile.configured)?.id
-    ?? status.profiles[0]?.id
-    ?? "";
+    || status.profiles.find(profile => profile.configured)?.id
+    || status.profiles[0]?.id
+    || "";
   const [selected, setSelected] = useState(initialProfile);
   const profile = status.profiles.find(item => item.id === selected);
   const provider = status.providers.find(item => item.id === profile?.provider);
@@ -51,7 +51,7 @@ export function ProviderSetup({
           <div>
             <span>AI models</span>
             <h2 id="tracepad-provider-title">Connect Tracepad</h2>
-            <p>Choose a model profile defined by Tracepad defaults or YAML. Credentials stay in the Jupyter server process.</p>
+            <p>Choose a provider and an exact model name. Tracepad never selects a default model. Credentials stay in the Jupyter server process.</p>
           </div>
           <button className="tp-icon" type="button" aria-label="Close AI setup" onClick={onClose}>×</button>
         </header>

@@ -5,6 +5,17 @@ import pytest
 from tracepad.config import ConfigurationError, load_configuration
 
 
+def test_builtin_profiles_do_not_choose_models(tmp_path):
+    configuration, loaded = load_configuration(
+        cwd=tmp_path,
+        environ={"XDG_CONFIG_HOME": str(tmp_path / "none")},
+    )
+
+    assert loaded == []
+    assert configuration["default_profile"] == ""
+    assert all(not profile["model"] for profile in configuration["profiles"].values())
+
+
 def test_explicit_config_overrides_project_and_user_files(monkeypatch, tmp_path):
     user_root = tmp_path / "user"
     user_file = user_root / "tracepad" / "config.yaml"

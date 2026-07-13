@@ -40,22 +40,28 @@ pnpm --dir vscode-extension build
 
 ## Configure AI
 
-Tracepad reads the same layered `tracepad.yaml` format as the JupyterLab host.
-Copy `../tracepad.example.yaml` to the workspace root as `tracepad.yaml`, then
-set credentials in the extension host environment:
+Tracepad provides Ollama, OpenAI, and OpenRouter adapters but does not choose a
+default model. Set an exact model name and select its provider before using
+Generate:
 
 ```bash
+export TRACEPAD_PROFILE="openai"
+export TRACEPAD_OPENAI_MODEL="your-model-name"
 export OPENAI_API_KEY="..."
-export OPENROUTER_API_KEY="..."
-export TRACEPAD_PROFILE="openai-fast"
 ```
 
-For local generation, run Ollama and set a model through YAML or:
+For Ollama:
 
 ```bash
 export TRACEPAD_PROFILE="ollama"
-export TRACEPAD_OLLAMA_MODEL="qwen2.5-coder:7b"
+export TRACEPAD_OLLAMA_MODEL="your-installed-model"
+export OLLAMA_HOST="http://127.0.0.1:11434"
 ```
+
+Use `TRACEPAD_OPENROUTER_MODEL` and `OPENROUTER_API_KEY` for OpenRouter. A
+workspace `tracepad.yaml` is only needed when you want multiple named profiles
+or a custom OpenAI-compatible endpoint; the root README contains the minimal
+schema.
 
 Credentials are read from environment variables or VS Code SecretStorage.
 They are never written to YAML or notebook metadata. The active provider and
@@ -88,9 +94,9 @@ outputs or table previews automatically.
    inserts or updates exactly one paired code cell below it.
 5. Review or edit the code and use VS Code's normal Run control, or press
    `Option+T`, then `R` on the prompt to generate and run in one action. After a
-   successful combined run, Tracepad collapses the code input so the result is
-   primary; use the native cell expander to inspect it again. Set
-   `tracepad.collapseCodeAfterRun` to `false` to keep it open.
+   generated code is collapsed so the request and result remain primary; use
+   the native cell expander to inspect it. Set
+   `tracepad.collapseGeneratedCode` to `false` to keep generated code open.
 6. Select `@result_name` or press `Option/Alt+T`, then `A`, with its cell
    selected to assign a friendly alias.
 7. After a successful output appears, select **Explore**. Tables, models, and

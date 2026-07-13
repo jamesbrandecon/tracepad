@@ -187,11 +187,11 @@
           "scope": "resource",
           "description": "Optional Tracepad YAML path. Relative paths resolve from the workspace root."
         },
-        "tracepad.collapseCodeAfterRun": {
+        "tracepad.collapseGeneratedCode": {
           "type": "boolean",
           "default": true,
           "scope": "resource",
-          "description": "Collapse generated code after a successful Tracepad Generate and Run action. Code remains available through VS Code's native cell expander."
+          "description": "Collapse a generated code cell by default. Code remains available through VS Code's native cell expander."
         }
       }
     }

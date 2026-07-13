@@ -14,6 +14,18 @@ function fixture(): { root: string; user: string; workspace: string } {
 }
 
 describe("Tracepad VS Code provider configuration", () => {
+  it("requires users to supply a model name", () => {
+    const paths = fixture();
+    const registry = loadProviderRegistry({
+      workspaceRoot: paths.workspace,
+      userConfigRoot: paths.user,
+      environment: {}
+    });
+    expect(registry.activeProfile).toBe("");
+    expect(registry.profiles.openai.model).toBe("");
+    expect(registry.profiles.openrouter.model).toBe("");
+  });
+
   it("layers user, workspace, and explicit YAML in that order", () => {
     const paths = fixture();
     writeFileSync(join(paths.user, "tracepad", "config.yaml"), `
@@ -97,7 +109,7 @@ default_profile: broken
     const paths = fixture();
     const notebookDirectory = join(paths.workspace, "vscode-extension", "demo");
     mkdirSync(notebookDirectory, { recursive: true });
-    writeFileSync(join(paths.workspace, "tracepad.example.yaml"), "version: 1\n");
+    writeFileSync(join(paths.workspace, "pyproject.toml"), "[project]\nname = \"fixture\"\n");
     expect(discoverConfigurationRoot(notebookDirectory)).toBe(paths.workspace);
   });
 });

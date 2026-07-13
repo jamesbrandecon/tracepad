@@ -47,6 +47,9 @@ describe("VS Code demo notebook", () => {
     const manifest = JSON.parse(readFileSync(resolve(__dirname, "../package.json"), "utf8")) as {
       version: string;
       contributes: {
+        configuration: {
+          properties: Record<string, { default?: unknown }>;
+        };
         keybindings: Array<{ command: string; key: string; when: string }>;
         commands: Array<{ command: string }>;
       };
@@ -54,6 +57,7 @@ describe("VS Code demo notebook", () => {
     const keybindings = new Map(manifest.contributes.keybindings.map(item => [item.command, item]));
     expect(manifest.version).toBe("0.3.6");
     expect((manifest as { icon?: string }).icon).toBe("media/tracepad-logo.png");
+    expect(manifest.contributes.configuration.properties["tracepad.collapseGeneratedCode"]?.default).toBe(true);
     expect(keybindings.get("tracepad.generate")).toMatchObject({ key: "alt+t g" });
     expect(keybindings.get("tracepad.generateAndRun")).toMatchObject({ key: "alt+t r" });
     expect(keybindings.get("tracepad.generateRunAndInsert")).toMatchObject({ key: "alt+t n" });

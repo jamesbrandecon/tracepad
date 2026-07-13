@@ -283,6 +283,13 @@ class TracepadModelStatus implements vscode.Disposable {
     try {
       const registry = await resolvedProviderRegistry(this.context, editor.notebook.uri);
       const profile = registry.profiles[registry.activeProfile];
+      if (!profile) {
+        this.item.text = "$(warning) Tracepad model setup";
+        this.item.tooltip = "Select a Tracepad model profile before generating code.";
+        this.item.backgroundColor = new vscode.ThemeColor("statusBarItem.warningBackground");
+        this.item.show();
+        return;
+      }
       const provider = registry.providers[profile.provider];
       const ready = profileReady(profile, registry.providers, registry.environment);
       const model = profile.model || (provider.driver === "ollama-chat" ? "Auto-detect" : "Select model");
@@ -602,14 +609,17 @@ async function executeCodeCell(codeCell: vscode.NotebookCell): Promise<void> {
   const completion = waitForCellExecution(codeCell);
   await vscode.commands.executeCommand("notebook.cell.execute");
   await completion;
-  const settings = vscode.workspace.getConfiguration("tracepad", codeCell.notebook.uri);
-  if (
-    settings.get<boolean>("collapseCodeAfterRun", true)
-    && codeCell.executionSummary?.success !== false
-    && codeCell.outputs.length
-  ) {
-    await vscode.commands.executeCommand("notebook.cell.collapseCellInput");
+  if (codeCell.executionSummary?.success !== false && codeCell.outputs.length) {
+    await collapseGeneratedCodeCell(codeCell);
   }
+}
+
+async function collapseGeneratedCodeCell(codeCell: vscode.NotebookCell): Promise<void> {
+  const settings = vscode.workspace.getConfiguration("tracepad", codeCell.notebook.uri);
+  if (!settings.get<boolean>("collapseGeneratedCode", true)) return;
+  const editor = await showNotebookEditor(codeCell.notebook);
+  editor.selection = new vscode.NotebookRange(codeCell.index, codeCell.index + 1);
+  await vscode.commands.executeCommand("notebook.cell.collapseCellInput");
 }
 
 function waitForCellExecution(cell: vscode.NotebookCell): Promise<void> {
@@ -695,6 +705,17 @@ async function generatePromptCell(
     return undefined;
   }
   const activeProfile = registry.profiles[registry.activeProfile];
+  if (!activeProfile) {
+    activeGenerations.delete(metadata.turnId);
+    const action = await vscode.window.showErrorMessage(
+      "Select a Tracepad model profile before generating code.",
+      "Select profile",
+      "Show diagnostics"
+    );
+    if (action === "Select profile") await selectProfile(context);
+    if (action === "Show diagnostics") await showDiagnostics(context, output);
+    return undefined;
+  }
   const activeProvider = registry.providers[activeProfile.provider];
   if (!profileReady(activeProfile, registry.providers, registry.environment)) {
     activeGenerations.delete(metadata.turnId);
@@ -796,6 +817,7 @@ async function generatePromptCell(
     const editor = await showNotebookEditor(codeCell.notebook);
     editor.selection = new vscode.NotebookRange(codeCell.index, codeCell.index + 1);
     editor.revealRange(editor.selection, vscode.NotebookEditorRevealType.InCenterIfOutsideViewport);
+    await collapseGeneratedCodeCell(codeCell);
     return codeCell;
   } catch (error) {
     if (cancellationRequested) {
@@ -1029,7 +1051,7 @@ async function selectProfile(context: vscode.ExtensionContext): Promise<void> {
         plainLabel: profile.label
       };
     }),
-    { title: "Select Tracepad model profile", placeHolder: registry.activeProfile }
+    { title: "Select Tracepad model profile", placeHolder: registry.activeProfile || "Choose a profile" }
   );
   if (!selected) return;
   const target = configurationTarget(notebookUri);
@@ -1142,8 +1164,16 @@ async function showDiagnostics(context: vscode.ExtensionContext, output: vscode.
   try {
     const registry = await resolvedProviderRegistry(context, notebook?.uri);
     const profile = registry.profiles[registry.activeProfile];
+    if (!profile) {
+      output.appendLine(`Config files: ${registry.loadedFiles.join(", ") || "built-in provider adapters"}`);
+      output.appendLine("Active profile: none selected");
+      output.appendLine("Ready: false");
+      output.appendLine("=== End diagnostics ===\n");
+      output.show(true);
+      return;
+    }
     const provider = registry.providers[profile.provider];
-    output.appendLine(`Config files: ${registry.loadedFiles.join(", ") || "built-in defaults"}`);
+    output.appendLine(`Config files: ${registry.loadedFiles.join(", ") || "built-in provider adapters"}`);
     output.appendLine(`Active profile: ${profile.id} (${profile.model || "model missing"})`);
     output.appendLine(`Provider: ${provider.id} (${provider.driver})`);
     output.appendLine(`Credential: ${provider.requiresApiKey ? (registry.environment[provider.apiKeyEnv] ? "configured" : `missing ${provider.apiKeyEnv}`) : "not required"}`);
