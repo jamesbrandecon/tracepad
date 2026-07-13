@@ -107,6 +107,8 @@ OpenAI-compatible endpoint. Tracepad also reads
 The VS Code host uses the native Notebook API rather than a custom webview.
 Build the private VSIX from the repository:
 
+![A Tracepad AI prompt followed by generated Python and native table output in VS Code](docs/images/tracepad-vscode-notebook.png)
+
 ```bash
 corepack enable
 pnpm install
