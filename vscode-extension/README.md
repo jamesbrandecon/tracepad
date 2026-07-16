@@ -22,13 +22,20 @@ Build the private VSIX:
 
 ```bash
 corepack enable
-pnpm install
-pnpm --dir vscode-extension package
+pnpm install --frozen-lockfile
+pnpm --dir vscode-extension run package
+code --install-extension ms-toolsai.jupyter
+code --install-extension vscode-extension/dist/tracepad-vscode.vsix --force
 ```
 
-In VS Code, open **Extensions**, select the `...` menu, choose **Install from
-VSIX**, and select `vscode-extension/dist/tracepad-vscode.vsix`. The Microsoft
-Jupyter extension is required and will be installed as an extension dependency.
+Verify installation with:
+
+```bash
+code --list-extensions --show-versions | grep -E 'ms-toolsai.jupyter|tracepad.tracepad-vscode'
+```
+
+The Microsoft Jupyter extension is required. Reload VS Code after installing
+the VSIX.
 
 For extension development, open `vscode-extension/` in VS Code and press `F5`
 after running:
@@ -41,39 +48,30 @@ pnpm --dir vscode-extension build
 ## Configure AI
 
 Tracepad provides Ollama, OpenAI, and OpenRouter adapters but does not choose a
-default model. Set an exact model name and select its provider before using
-Generate:
+default model. Put the provider and exact model name in workspace
+`tracepad.yaml` without including an API key:
 
-```bash
-export TRACEPAD_PROFILE="openai"
-export TRACEPAD_OPENAI_MODEL="your-model-name"
-export OPENAI_API_KEY="..."
+```yaml
+version: 1
+default_profile: analysis
+
+profiles:
+  analysis:
+    provider: openai
+    model: your-exact-model-name
 ```
 
-For Ollama:
-
-```bash
-export TRACEPAD_PROFILE="ollama"
-export TRACEPAD_OLLAMA_MODEL="your-installed-model"
-export OLLAMA_HOST="http://127.0.0.1:11434"
-```
-
-Use `TRACEPAD_OPENROUTER_MODEL` and `OPENROUTER_API_KEY` for OpenRouter. A
-workspace `tracepad.yaml` is only needed when you want multiple named profiles
-or a custom OpenAI-compatible endpoint; the root README contains the minimal
-schema.
-
-Credentials are read from environment variables or VS Code SecretStorage.
-They are never written to YAML or notebook metadata. The active provider and
-model are always visible in the VS Code status bar. Select that item, choose
-**Model** in the notebook toolbar, or run **Tracepad: Select Model** to switch
-among configured profiles for the current workspace.
+Run **Tracepad: Select Model** to choose the profile, then
+**Tracepad: Configure Provider Credentials**. The user enters hosted-provider
+keys; VS Code stores them in SecretStorage. Keys are never written to YAML or
+notebook metadata. Ollama requires a running local server and installed model
+but no key. The active provider and model are visible in the status bar.
 
 When VS Code was launched from the macOS Dock and does not inherit shell
-environment variables, run **Tracepad: Configure Provider Credentials**. Keys
-entered there are stored in VS Code SecretStorage, not settings or notebooks.
-Run **Tracepad: Show Diagnostics** to inspect configuration discovery and
-provider readiness without exposing credential values.
+environment variables, SecretStorage remains reliable. Environment variables
+are supported for headless setups; see the root README for their names. Run
+**Tracepad: Show Diagnostics** to inspect configuration discovery and provider
+readiness without exposing credential values.
 
 Generation sends the English request and source code for the small, adaptive
 set of referenced cells to the selected provider. It does not send saved cell
@@ -93,9 +91,9 @@ outputs or table previews automatically.
    Tracepad removes `%%ai`, leaves a plain portable Markdown request, and
    inserts or updates exactly one paired code cell below it.
 5. Review or edit the code and use VS Code's normal Run control, or press
-   `Option+T`, then `R` on the prompt to generate and run in one action. After a
-   generated code is collapsed so the request and result remain primary; use
-   the native cell expander to inspect it. Set
+   `Option+T`, then `R` on the prompt to generate and run in one action. After
+   generation, the generated code is collapsed so the request and result
+   remain primary; use the native cell expander to inspect it. Set
    `tracepad.collapseGeneratedCode` to `false` to keep generated code open.
 6. Select `@result_name` or press `Option/Alt+T`, then `A`, with its cell
    selected to assign a friendly alias.
