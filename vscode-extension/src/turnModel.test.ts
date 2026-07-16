@@ -9,6 +9,7 @@ import {
   formatPromptMarkdown,
   generatedSourceWasEdited,
   isPromptMarkerSource,
+  newPromptSource,
   nextTurnNumber,
   referencedTokens,
   runtimeNameFor,
@@ -107,6 +108,7 @@ describe("Tracepad turn model", () => {
   });
 
   it("adopts %%ai markdown without preserving extension syntax in the notebook", () => {
+    expect(newPromptSource()).toBe("%%ai\n");
     expect(isPromptMarkerSource("%%ai\nSummarize orders.")).toBe(true);
     expect(isPromptMarkerSource("Summarize orders.")).toBe(false);
     expect(extractPromptText("%%ai\nSummarize orders.")).toBe("Summarize orders.");
@@ -126,7 +128,7 @@ describe("Tracepad turn model", () => {
     expect(referencedTokens("Compare @orders with @2 and @orders")).toEqual(["orders", "2"]);
   });
 
-  it("selects result-specific exploration tools", () => {
+  it("selects result-specific follow-up tools", () => {
     expect(classifyResult("frame.groupby('region').sum()", ["text/plain"])).toBe("data");
     expect(classifyResult("model = smf.logit(formula, data).fit()", ["text/plain"])).toBe("model");
     expect(classifyResult("fig, ax = plt.subplots()", ["image/png"])).toBe("plot");

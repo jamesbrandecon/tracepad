@@ -182,6 +182,10 @@ export function formatPromptMarkdown(
   return stripPromptMarker(prompt).trim();
 }
 
+export function newPromptSource(): string {
+  return `${TRACEPAD_PROMPT_MARKER}\n`;
+}
+
 export function extractPromptText(source: string): string {
   const value = stripPromptMarker(source).trim();
   if (!value.startsWith(">")) return value;

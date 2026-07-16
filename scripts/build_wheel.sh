@@ -9,5 +9,4 @@ if [[ ! -x "${VENV_DIR}/bin/python" ]]; then
   exit 1
 fi
 
-cd "${ROOT_DIR}"
-"${VENV_DIR}/bin/python" -m pip wheel . --no-deps --no-build-isolation --wheel-dir dist
+exec "${VENV_DIR}/bin/python" "${ROOT_DIR}/scripts/build_wheel.py" --venv "${VENV_DIR}" "$@"

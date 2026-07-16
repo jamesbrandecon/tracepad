@@ -33,10 +33,10 @@ their native notebook outputs while sharing the prompt and lineage workflow.
 
 ## Before installing
 
-Tracepad is currently tested on macOS and Linux. The repository scripts use a
-Unix shell and `.venv/bin`; native Windows installation is not yet documented
-or tested. Python 3.9 or newer is required. The VS Code host additionally
-requires VS Code 1.95 or newer, Node.js 22, and Corepack.
+Tracepad supports current macOS, Linux, and Windows releases. Python 3.9 or
+newer is required. The VS Code host additionally requires VS Code 1.95 or
+newer, Node.js 22, and either pnpm or Corepack. Bash and PowerShell wrappers
+call the same cross-platform Python installers.
 
 Choose one notebook host and one model provider before starting:
 
@@ -76,24 +76,34 @@ Prerequisites: authenticated repository access, Git, and Python 3.9 or newer.
 Node and pnpm are not required because the prebuilt JupyterLab extension is
 committed to the repository.
 
+macOS or Linux:
+
 ```bash
 ./scripts/install.sh
 ./scripts/demo.sh
 ```
 
-`install.sh` chooses a supported Python, creates `.venv`, and installs the
-package and demo dependencies. `demo.sh` is the canonical launch command and
-opens `tracepad_demo.ipynb` in JupyterLab.
+Windows PowerShell:
+
+```powershell
+.\scripts\install.ps1
+.\scripts\demo.ps1
+```
+
+If local PowerShell policy blocks repository scripts, first run
+`Set-ExecutionPolicy -Scope Process Bypass`. Both installers create `.venv`
+and install Tracepad plus the demo dependencies. Both demo commands open
+`tracepad_demo.ipynb` in JupyterLab.
 
 Verify the installation without starting another server:
 
 ```bash
-.venv/bin/python -c "import tracepad; print('Tracepad', tracepad.__version__)"
-.venv/bin/jupyter server extension list
-.venv/bin/jupyter labextension list
+python3 scripts/verify_install.py       # macOS/Linux
+py -3 .\scripts\verify_install.py       # Windows PowerShell
 ```
 
-Both extension lists should include Tracepad. Open an `.ipynb` with
+The verifier checks the installed Python package, authenticated server
+extension, and prebuilt JupyterLab extension. Open an `.ipynb` with
 **Tracepad Notebook** or use **Jupyter view** in the Tracepad header to switch
 the same document back to the conventional editor.
 
@@ -109,25 +119,25 @@ node --version
 corepack --version
 ```
 
-Build and install the private VSIX without using the VS Code GUI:
+Build and install the private VSIX without using the VS Code GUI.
+
+macOS or Linux:
 
 ```bash
-corepack enable
-pnpm install --frozen-lockfile
-pnpm --dir vscode-extension run package
-code --install-extension ms-toolsai.jupyter
-code --install-extension vscode-extension/dist/tracepad-vscode.vsix --force
+./scripts/install_vscode.sh
 ```
 
-Verify both extensions are visible:
+Windows PowerShell:
 
-```bash
-code --list-extensions --show-versions | grep -E 'ms-toolsai.jupyter|tracepad.tracepad-vscode'
+```powershell
+.\scripts\install_vscode.ps1
 ```
 
-Reload VS Code after installation. Open an `.ipynb`, select a working kernel,
-and choose **AI Prompt** in the notebook toolbar or begin a Markdown cell with
-`%%ai`.
+The installer resolves pnpm or Corepack, builds the locked VSIX, installs the
+Microsoft Jupyter dependency, and installs Tracepad. Reload VS Code, open an
+`.ipynb`, and select `.venv/bin/python` on macOS/Linux or
+`.venv\Scripts\python.exe` on Windows as the kernel. Choose **AI Prompt** in
+the notebook toolbar or begin a Markdown cell with `%%ai`.
 
 ![Annotated Tracepad generation flow in VS Code](docs/images/tracepad-vscode-notebook.png)
 
@@ -138,8 +148,8 @@ Use the `Option/Alt+T` chord family:
 | `G` | Generate code |
 | `R` | Generate and run |
 | `N` | Generate, run, and add the next prompt |
-| `P` | Add a prompt |
-| `E` | Explore the selected result |
+| `P` | Add a prompt prefilled with `%%ai` |
+| `E` | Create a follow-up from the selected result |
 | `I` | Insert a prior `@result` reference |
 | `L` | Show lineage |
 | `A` | Rename the selected result |
@@ -150,9 +160,12 @@ Code's native cell expander. See
 [`vscode-extension/README.md`](vscode-extension/README.md) for host-specific
 details.
 
-Named results can be reused in later English prompts. Tracepad records the
-stable runtime mapping and lineage in notebook metadata while users work with
-friendly names such as `@orders`.
+Named results can be reused in later English prompts. Tracepad records a stable
+runtime mapping and lineage in notebook metadata while users work with names
+such as `@orders`. Generated code shows `orders = tracepad_result_1` explicitly;
+this creates another reference to the same object and does not copy the data.
+Result cards keep **Follow-up** (create an AI child turn) separate from
+**Lineage** (navigate inputs and derived results).
 
 ![Annotated Tracepad named-result reference flow in VS Code](docs/images/tracepad-vscode-references.png)
 
@@ -178,12 +191,14 @@ profiles:
 
 Valid provider ids are `ollama`, `openai`, and `openrouter`. Ollama profiles
 may also define a local endpoint; hosted providers still require a user-entered
-key. Tracepad reads workspace `tracepad.yaml`,
-`~/.config/tracepad/config.yaml`, or the path in `TRACEPAD_CONFIG`.
+key. Tracepad reads workspace `tracepad.yaml`, the user configuration at
+`~/.config/tracepad/config.yaml` on macOS/Linux or
+`%APPDATA%\tracepad\config.yaml` on Windows, or the path in
+`TRACEPAD_CONFIG`.
 
 ### JupyterLab model handoff
 
-1. Start Tracepad with `./scripts/demo.sh`.
+1. Start Tracepad with `./scripts/demo.sh` or `.\scripts\demo.ps1`.
 2. Select the model control in the Tracepad header.
 3. Choose the configured profile or enter the exact provider and model.
 4. The user enters the OpenAI or OpenRouter key when prompted.
@@ -231,10 +246,13 @@ An agent-assisted setup is complete when:
 | `style/index.css` | JupyterLab's conventional stylesheet entrypoint and Tracepad UI rules |
 | `tracepad/labextension/` | Prebuilt JupyterLab bundle used by repository and wheel installs |
 | `vscode-extension/` | Native VS Code notebook host and VSIX package |
+| `scripts/*.py` with `.sh`/`.ps1` wrappers | Cross-platform installation, launch, verification, and packaging |
 
 These files belong to separate packaging layers; none are interchangeable.
 
 ## Development
+
+macOS or Linux:
 
 ```bash
 python3 -m venv .venv
@@ -254,8 +272,15 @@ Build local artifacts without publishing them:
 pnpm --dir vscode-extension run package
 ```
 
-GitHub Actions runs the same builds and tests. Build artifacts under `dist/`
-are ignored by Git and are not releases.
+On Windows PowerShell, use `.venv\Scripts\python.exe` in place of
+`.venv/bin/python`, set `$env:PYTHON = ".venv\Scripts\python.exe"` before
+`pnpm build`, and run `.\scripts\build_wheel.ps1` for the wheel. The pnpm
+commands themselves are identical across platforms.
+
+GitHub Actions runs builds, tests, executable notebook checks, native installer
+smokes, wheel builds, and VSIX packaging on `ubuntu-latest`, `macos-latest`,
+and `windows-latest`. Build artifacts under `dist/` are ignored by Git and are
+not releases.
 
 ## Storage and security
 

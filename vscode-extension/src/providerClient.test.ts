@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { capturesRuntimeResult, systemInstructions } from "./providerClient";
+import { capturesRuntimeResult, prependReferenceBindings, systemInstructions } from "./providerClient";
 
 describe("Tracepad generation contract", () => {
   it("accepts variable and temporary-view result bindings", () => {
@@ -22,5 +22,22 @@ describe("Tracepad generation contract", () => {
     expect(instructions).toContain("actual reusable result object");
     expect(instructions).toContain("full data frame or lazy table");
     expect(instructions).toContain("not a dictionary or list containing previews");
+  });
+
+  it("binds friendly reference names without copying their objects", () => {
+    const code = prependReferenceBindings(
+      "tracepad_result_2 = tracepad_result_1.describe()\ntracepad_result_2",
+      "python",
+      [{ token: "@orders", alias: "orders", runtimeName: "tracepad_result_1", turnNumber: "1" }]
+    );
+    expect(code).toContain("orders = tracepad_result_1  # @orders");
+    expect(code).toContain("no data is copied");
+  });
+
+  it("does not duplicate friendly reference bindings during repair", () => {
+    const reference = { token: "@orders", alias: "orders", runtimeName: "tracepad_result_1", turnNumber: "1" };
+    const first = prependReferenceBindings("tracepad_result_2 = orders.head()", "python", [reference]);
+    const second = prependReferenceBindings(first, "python", [reference]);
+    expect(second.match(/Tracepad references/g)).toHaveLength(1);
   });
 });

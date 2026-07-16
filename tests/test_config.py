@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from tracepad.config import ConfigurationError, load_configuration
+from tracepad.config import ConfigurationError, load_configuration, user_config_root
 
 
 def test_builtin_profiles_do_not_choose_models(tmp_path):
@@ -14,6 +14,13 @@ def test_builtin_profiles_do_not_choose_models(tmp_path):
     assert loaded == []
     assert configuration["default_profile"] == ""
     assert all(not profile["model"] for profile in configuration["profiles"].values())
+
+
+def test_windows_user_configuration_uses_appdata(tmp_path):
+    assert user_config_root(
+        {"APPDATA": str(tmp_path / "Roaming")},
+        platform_name="win32",
+    ) == tmp_path / "Roaming"
 
 
 def test_explicit_config_overrides_project_and_user_files(monkeypatch, tmp_path):

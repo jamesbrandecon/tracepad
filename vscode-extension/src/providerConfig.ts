@@ -38,6 +38,7 @@ export interface RegistryOptions {
   profileOverride?: string;
   environment?: NodeJS.ProcessEnv;
   userConfigRoot?: string;
+  platform?: NodeJS.Platform;
 }
 
 const DEFAULT_CONFIGURATION: Record<string, unknown> = {
@@ -98,9 +99,12 @@ const DEFAULT_CONFIGURATION: Record<string, unknown> = {
 export function loadProviderRegistry(options: RegistryOptions = {}): ProviderRegistry {
   const environment = options.environment ?? process.env;
   const workspaceRoot = options.workspaceRoot ?? process.cwd();
+  const platform = options.platform ?? process.platform;
   const userRoot = options.userConfigRoot
     ?? environment.XDG_CONFIG_HOME
-    ?? join(homedir(), ".config");
+    ?? (platform === "win32"
+      ? environment.APPDATA ?? join(homedir(), "AppData", "Roaming")
+      : join(homedir(), ".config"));
   const explicit = options.explicitPath || environment.TRACEPAD_CONFIG || "";
   const explicitPath = explicit
     ? (isAbsolute(explicit) ? explicit : resolve(workspaceRoot, explicit))

@@ -18,24 +18,21 @@ records child lineage. Editors without Tracepad still display a valid notebook.
 
 ## Install from this repository
 
-Build the private VSIX:
+macOS or Linux:
 
 ```bash
-corepack enable
-pnpm install --frozen-lockfile
-pnpm --dir vscode-extension run package
-code --install-extension ms-toolsai.jupyter
-code --install-extension vscode-extension/dist/tracepad-vscode.vsix --force
+./scripts/install_vscode.sh
 ```
 
-Verify installation with:
+Windows PowerShell:
 
-```bash
-code --list-extensions --show-versions | grep -E 'ms-toolsai.jupyter|tracepad.tracepad-vscode'
+```powershell
+.\scripts\install_vscode.ps1
 ```
 
-The Microsoft Jupyter extension is required. Reload VS Code after installing
-the VSIX.
+Run these commands from the repository root. The installer builds the private
+VSIX and installs both it and the required Microsoft Jupyter extension. Reload
+VS Code afterward.
 
 For extension development, open `vscode-extension/` in VS Code and press `F5`
 after running:
@@ -85,7 +82,9 @@ outputs or table previews automatically.
    pre-create an empty code cell.
 3. Type `@` to see earlier named results, their turn numbers, result kinds, and
    whether they need to be run. Both `@orders` and its numeric turn reference
-   (for example `@1`) resolve to the same stable kernel object.
+   (for example `@1`) resolve to the same stable kernel object. Generated code
+   shows the friendly-to-stable binding, such as
+   `orders = tracepad_result_1`; this does not copy the object.
 4. Press `Option+T`, then `G` (`Alt+T`, then `G` on Windows/Linux) to generate
    code without running it. After generation,
    Tracepad removes `%%ai`, leaves a plain portable Markdown request, and
@@ -97,9 +96,10 @@ outputs or table previews automatically.
    `tracepad.collapseGeneratedCode` to `false` to keep generated code open.
 6. Select `@result_name` or press `Option/Alt+T`, then `A`, with its cell
    selected to assign a friendly alias.
-7. After a successful output appears, select **Explore**. Tables, models, and
-   plots receive different follow-up actions; each creates and generates a
-   visibly linked follow-up turn beneath the result.
+7. After a successful output appears, select **Follow-up**. Tables, models, and
+   plots receive different actions; each creates and generates a visibly
+   linked child turn beneath the result. Select **Lineage** to navigate inputs
+   and downstream results without creating a cell.
 8. Use `Option+T`, then `N` on a prompt to generate, run, and insert the next `%%ai`
    prompt. If execution fails, **Fix with AI** appears only on that failed
    result. It updates the paired code cell and asks you to run it again.
@@ -118,8 +118,8 @@ Press `Option+T` on macOS or `Alt+T` on Windows/Linux, release it, then press:
 | `G` | Generate code |
 | `R` | Generate and run |
 | `N` | Generate, run, and add the next prompt |
-| `P` | Add a new AI prompt |
-| `E` | Explore the selected result |
+| `P` | Add a new AI prompt prefilled with `%%ai` |
+| `E` | Create a follow-up from the selected result |
 | `I` | Insert a prior result reference |
 | `L` | Show result lineage |
 | `A` | Rename the selected result alias |
@@ -153,8 +153,9 @@ It reads its bundled `demo/data/retail_orders.csv` and
 shows a source table, a named aggregation, and a child visualization.
 
 Select a Python kernel that contains `ipykernel`; repository installs can use
-`.venv/bin/python`. The demo bundles its CSV beside the notebook so execution
-does not depend on the VS Code workspace's working directory.
+`.venv/bin/python` on macOS/Linux or `.venv\Scripts\python.exe` on Windows.
+The demo bundles its CSV beside the notebook so execution does not depend on
+the VS Code workspace's working directory.
 
 ## V1 boundaries
 
@@ -162,9 +163,10 @@ does not depend on the VS Code workspace's working directory.
   rendering, and notebook persistence.
 - The `Option/Alt+T` chord family exposes Tracepad actions without changing
   Jupyter's native `Ctrl+Enter`, `Shift+Enter`, or `Alt+Enter` behavior.
-- Exploration is an inline follow-up turn, not a sidebar or custom webview.
-- Result names are friendly prompt references; generated code uses stable
-  kernel variables such as `tracepad_result_2_1`.
+- Follow-up is an inline child turn, not a sidebar or custom webview; Lineage
+  is navigation only.
+- Result names are friendly prompt references bound visibly to stable kernel
+  variables such as `tracepad_result_2_1`; the binding does not copy data.
 - Kernel objects disappear when the kernel restarts. Re-run ancestor cells to
   recreate them.
 - Rich Tracepad cards currently target Python objects. R, Julia, and SQL keep

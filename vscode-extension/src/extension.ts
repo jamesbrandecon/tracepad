@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { dirname } from "node:path";
 import * as vscode from "vscode";
+import { followUpChoices } from "./followUpChoices";
 import { generateCode } from "./providerClient";
 import {
   discoverConfigurationRoot,
@@ -23,6 +24,7 @@ import {
   formatPromptMarkdown,
   generatedSourceWasEdited,
   isPromptMarkerSource,
+  newPromptSource,
   nextTurnNumber,
   referencedTokens,
   runtimeNameFor,
@@ -134,6 +136,7 @@ async function handleRendererMessage(
   }
   if (message.type === "rename") await renameResult(cell);
   if (message.type === "explore") await exploreResult(cell, output, context);
+  if (message.type === "lineage") await showLineage(cell);
 }
 
 class TracepadStatusBarProvider implements vscode.NotebookCellStatusBarItemProvider, vscode.Disposable {
@@ -254,10 +257,10 @@ class TracepadStatusBarProvider implements vscode.NotebookCellStatusBarItemProvi
     }
     if (hasInspectableOutput(cell) && !renderedOutput) {
       items.push(statusItem(
-        "$(search) Explore",
+        "$(comment-discussion) Follow-up",
         vscode.NotebookCellStatusBarAlignment.Right,
         command("tracepad.exploreResult", cell),
-        "Ask a follow-up or inspect this result",
+        "Create an AI-generated child turn using this result",
         100
       ));
     }
@@ -433,7 +436,7 @@ async function exploreResult(
     return;
   }
   if (!hasInspectableOutput(cell)) {
-    void vscode.window.showInformationMessage("Run this cell successfully before exploring its result.");
+    void vscode.window.showInformationMessage("Run this cell successfully before creating a follow-up.");
     return;
   }
   const resultKind = classifyResult(
@@ -441,47 +444,9 @@ async function exploreResult(
     cell.outputs.flatMap(output => output.items.map(item => item.mime))
   );
   const renderedKind = tracepadRenderedKind(cell) ?? resultKind;
-  const choices: Array<vscode.QuickPickItem & { prompt: string }> = [{
-      label: "$(comment-discussion) Ask a follow-up",
-      description: "Write a custom request using this result",
-      prompt: ""
-    }];
-  if (renderedKind === "data") choices.push({
-      label: "$(preview) Summarize and diagnose",
-      description: "Structure, quality, assumptions, and useful diagnostics",
-      prompt: `Using @${metadata.alias}, summarize this result and show the most informative diagnostics for its object type.`
-    },
-    {
-      label: "$(graph) Visualize",
-      description: "Generate an appropriate, reusable plot",
-      prompt: `Using @${metadata.alias}, create the most informative visualization for this result with clear labels and return the plot object.`
-    });
-  if (renderedKind === "model") choices.push({
-      label: "$(symbol-method) Inspect model",
-      description: "Summary, coefficients, fitted values, and prediction support",
-      prompt: `Using @${metadata.alias}, inspect this model. Show its summary and coefficients, diagnose the fit, and explain what prediction and plotting methods are available.`
-    },
-    {
-      label: "$(graph) Plot model diagnostics",
-      description: "Create diagnostics appropriate for the fitted model",
-      prompt: `Using @${metadata.alias}, create and return the most informative diagnostic plot for this fitted model.`
-    },
-    {
-      label: "$(symbol-value) Generate predictions",
-      description: "Create a reusable prediction result",
-      prompt: `Using @${metadata.alias}, generate a useful prediction example from the available model data and return the prediction result.`
-    });
-  if (renderedKind === "plot") choices.push({
-    label: "$(preview) Explain and critique",
-    description: "Interpret the plot and identify improvements",
-    prompt: `Using @${metadata.alias}, explain the important patterns in this plot and critique whether it communicates the result clearly.`
-  }, {
-    label: "$(edit) Revise visualization",
-    description: "Generate an improved plot object",
-    prompt: `Using @${metadata.alias}, revise this visualization for clearer comparison, labeling, and presentation, then return the improved plot object.`
-  });
+  const choices = followUpChoices(metadata.alias, renderedKind);
   const choice = await vscode.window.showQuickPick(choices, {
-    title: `Explore @${metadata.alias}`,
+    title: `Follow up on @${metadata.alias}`,
     placeHolder: "Choose how to continue from this result"
   });
   if (!choice) return;
@@ -519,7 +484,7 @@ async function insertPromptCell(
     ...(parent?.turnId ? { parentTurnId: parent.turnId } : {}),
     ...(parent?.alias ? { parentAlias: parent.alias } : {})
   };
-  const renderedPrompt = promptText ? formatPromptMarkdown(promptText, turnNumber, parent?.alias) : "%%ai\n";
+  const renderedPrompt = promptText ? formatPromptMarkdown(promptText, turnNumber, parent?.alias) : newPromptSource();
   const prompt = new vscode.NotebookCellData(vscode.NotebookCellKind.Markup, renderedPrompt, "markdown");
   prompt.metadata = withHostTracepadMetadata({}, { ...shared, role: "prompt" });
 
@@ -746,6 +711,7 @@ async function generatePromptCell(
   const promptTokens = new Set(referencedTokens(prompt));
   const references = selectedReferences.map(reference => ({
     token: promptTokens.has(reference.turnNumber) ? `@${reference.turnNumber}` : `@${reference.alias}`,
+    alias: reference.alias,
     runtimeName: reference.runtimeName,
     turnNumber: reference.turnNumber,
     source: stripResultBridge(

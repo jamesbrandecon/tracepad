@@ -85,6 +85,27 @@ profiles:
     expect(profileReady(registry.profiles.ollama, registry.providers, registry.environment)).toBe(true);
   });
 
+  it("loads Windows user profiles from APPDATA", () => {
+    const paths = fixture();
+    const appData = join(paths.root, "AppData", "Roaming");
+    mkdirSync(join(appData, "tracepad"), { recursive: true });
+    writeFileSync(join(appData, "tracepad", "config.yaml"), `
+version: 1
+default_profile: windows-model
+profiles:
+  windows-model:
+    provider: openai
+    model: configured-on-windows
+`);
+    const registry = loadProviderRegistry({
+      workspaceRoot: paths.workspace,
+      environment: { APPDATA: appData },
+      platform: "win32"
+    });
+    expect(registry.activeProfile).toBe("windows-model");
+    expect(registry.loadedFiles).toContain(join(appData, "tracepad", "config.yaml"));
+  });
+
   it("rejects unsupported provider drivers", () => {
     const paths = fixture();
     writeFileSync(join(paths.workspace, "tracepad.yaml"), `

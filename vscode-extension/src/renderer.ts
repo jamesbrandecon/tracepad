@@ -76,8 +76,11 @@ function renderResult(
     actionButton("Rename", "Rename this result", () => {
       context.postMessage?.({ type: "rename", turnId: payload.turnId });
     }),
-    actionButton("Explore", "Ask a follow-up using this result", () => {
+    actionButton("Follow-up", "Create an AI-generated child turn using this result", () => {
       context.postMessage?.({ type: "explore", turnId: payload.turnId });
+    }),
+    actionButton("Lineage", "See the results used by and derived from this result", () => {
+      context.postMessage?.({ type: "lineage", turnId: payload.turnId });
     })
   );
   header.append(identity, actions);

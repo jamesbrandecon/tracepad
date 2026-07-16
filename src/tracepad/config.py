@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import copy
 import os
+import sys
 from pathlib import Path
 from typing import Any, Mapping
 
@@ -82,8 +83,8 @@ def load_configuration(
 
     environment = os.environ if environ is None else environ
     root = Path.cwd() if cwd is None else Path(cwd)
-    xdg_root = Path(environment.get("XDG_CONFIG_HOME", Path.home() / ".config"))
-    paths = [xdg_root / "tracepad" / "config.yaml", root / "tracepad.yaml"]
+    config_root = user_config_root(environment)
+    paths = [config_root / "tracepad" / "config.yaml", root / "tracepad.yaml"]
     explicit = environment.get("TRACEPAD_CONFIG", "").strip()
     if explicit:
         paths.append(Path(explicit).expanduser())
@@ -104,6 +105,19 @@ def load_configuration(
         loaded.append(str(normalized))
 
     return _validate(configuration), loaded
+
+
+def user_config_root(
+    environment: Mapping[str, str],
+    *,
+    platform_name: str | None = None,
+) -> Path:
+    platform_name = sys.platform if platform_name is None else platform_name
+    if environment.get("XDG_CONFIG_HOME"):
+        return Path(environment["XDG_CONFIG_HOME"])
+    if platform_name == "win32":
+        return Path(environment.get("APPDATA", Path.home() / "AppData" / "Roaming"))
+    return Path.home() / ".config"
 
 
 def _read_yaml(path: Path) -> dict[str, Any]:

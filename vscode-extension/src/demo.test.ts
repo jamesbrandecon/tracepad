@@ -38,6 +38,7 @@ describe("VS Code demo notebook", () => {
       expect(code.metadata.tracepad?.turnId).toBe(prompt.metadata.tracepad?.turnId);
       expect(code.metadata.tracepad?.turnNumber).toBe(prompt.metadata.tracepad?.turnNumber);
       expect(code.source.join("")).toContain(code.metadata.tracepad?.runtimeName);
+      expect(code.source.join("")).toContain(`@${code.metadata.tracepad?.alias}`);
       expect(code.execution_count === null || typeof code.execution_count === "number").toBe(true);
       expect(Array.isArray(code.outputs)).toBe(true);
     }
@@ -55,7 +56,7 @@ describe("VS Code demo notebook", () => {
       };
     };
     const keybindings = new Map(manifest.contributes.keybindings.map(item => [item.command, item]));
-    expect(manifest.version).toBe("0.3.7");
+    expect(manifest.version).toBe("0.3.8");
     expect((manifest as { icon?: string }).icon).toBe("media/tracepad-logo.png");
     expect(manifest.contributes.configuration.properties["tracepad.collapseGeneratedCode"]?.default).toBe(true);
     expect(keybindings.get("tracepad.generate")).toMatchObject({ key: "alt+t g" });

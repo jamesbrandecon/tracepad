@@ -2,6 +2,7 @@ import type { ProfileDefinition, ProviderDefinition, ProviderRegistry } from "./
 
 export interface GenerationReference {
   token: string;
+  alias: string;
   runtimeName: string;
   turnNumber: string;
   source?: string;
@@ -82,6 +83,7 @@ export async function generateCode(
   }
   return {
     ...parsed,
+    code: prependReferenceBindings(parsed.code, language, references),
     profile: profile.id,
     provider: provider.id,
     model
@@ -96,12 +98,54 @@ export function systemInstructions(language: string, runtimeName: string): strin
     "Generate concise executable notebook code.",
     "Return JSON only with string keys code and notes. Do not use markdown fences.",
     `Use the ${language} kernel language.`,
-    "Use supplied reference runtime names instead of @ tokens in executable code.",
+    "Available references include a user-facing alias and a stable runtimeName.",
+    "Use the readable alias in executable code; Tracepad binds it to runtimeName without copying the object.",
     "Bind the actual reusable result object, not a dictionary or list containing previews, shapes, columns, dtypes, summaries, or diagnostics.",
     "For tabular requests, bind the full data frame or lazy table; Tracepad renders its own bounded preview and metadata.",
     resultContract,
     "Never include credentials."
   ].join(" ");
+}
+
+export function prependReferenceBindings(
+  code: string,
+  language: string,
+  references: GenerationReference[]
+): string {
+  const cleanCode = stripReferenceBindings(code);
+  const unique = [...new Map(
+    references
+      .filter(reference => reference.alias && reference.runtimeName)
+      .map(reference => [reference.alias, reference])
+  ).values()];
+  if (!unique.length) return cleanCode;
+
+  const normalized = language.toLowerCase();
+  const marker = "Tracepad references: friendly names point to the same objects; no data is copied";
+  if (normalized === "sql") {
+    return [
+      `-- ${marker}`,
+      ...unique.map(reference => `-- @${reference.alias} -> ${reference.runtimeName}`),
+      "",
+      cleanCode
+    ].join("\n");
+  }
+  const assignment = normalized === "r" ? "<-" : "=";
+  return [
+    `# ${marker}`,
+    ...unique.map(reference => `${reference.alias} ${assignment} ${reference.runtimeName}  # @${reference.alias}`),
+    "",
+    cleanCode
+  ].join("\n");
+}
+
+function stripReferenceBindings(code: string): string {
+  const lines = code.trim().split("\n");
+  if (!lines[0]?.includes("Tracepad references: friendly names point to the same objects")) {
+    return code.trim();
+  }
+  const separator = lines.findIndex((line, index) => index > 0 && !line.trim());
+  return (separator >= 0 ? lines.slice(separator + 1) : []).join("\n").trim();
 }
 
 export function capturesRuntimeResult(code: string, runtimeName: string): boolean {

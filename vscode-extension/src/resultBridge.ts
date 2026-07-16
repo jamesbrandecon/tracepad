@@ -21,8 +21,9 @@ export function appendResultBridge(
   const cleanSource = stripResultBridge(source);
   if (!language.toLowerCase().startsWith("python")) return cleanSource;
 
+  const displayVariable = options.alias;
   const argumentsValue = [
-    options.runtimeName,
+    displayVariable,
     `name=${JSON.stringify(options.alias)}`
   ].join(", ");
 
@@ -32,7 +33,8 @@ export function appendResultBridge(
     .join("\n")
     .trimEnd();
 
-  return `${withoutTrailingResult}\n\ntry:  ${TRACEPAD_RESULT_MARKER}
+  return `${withoutTrailingResult}\n\n${displayVariable} = ${options.runtimeName}  ${TRACEPAD_RESULT_MARKER}: @${options.alias} points to this same object
+try:
     from tracepad import present
 except ImportError:
     present = lambda value, **_: value
