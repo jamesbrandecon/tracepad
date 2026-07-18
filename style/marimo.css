@@ -72,8 +72,9 @@ body {
 .tracepad-marimo-prompt {
   position: relative;
   display: grid;
-  grid-template-columns: 58px minmax(0, 1fr);
+  grid-template-columns: 58px minmax(0, 1fr) auto;
   gap: 14px;
+  align-items: center;
   padding: 15px 17px;
   border-left: 3px solid var(--tp-marimo-cobalt);
 }
@@ -91,6 +92,89 @@ body {
   color: var(--tp-marimo-ink);
   font-size: 15px;
   line-height: 1.5;
+}
+
+.tracepad-marimo-prompt-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  min-width: 112px;
+}
+
+.tracepad-marimo-generate {
+  min-height: 34px;
+  padding: 0 14px;
+  border: 1px solid var(--tp-marimo-cobalt);
+  border-radius: 6px;
+  background: var(--tp-marimo-cobalt);
+  color: #fff;
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.tracepad-marimo-generate:hover {
+  background: #2847ad;
+}
+
+.tracepad-marimo-generate:focus-visible {
+  outline: 2px solid #91a6ea;
+  outline-offset: 2px;
+}
+
+.tracepad-marimo-generate:disabled {
+  cursor: wait;
+  opacity: 0.62;
+}
+
+.tracepad-marimo-generate-status {
+  max-width: 180px;
+  color: var(--tp-marimo-muted);
+  font-size: 11px;
+  line-height: 1.3;
+}
+
+/* Tracepad's hidden scaffolding should read as notebook content, not nested cells. */
+[data-cell-name="tracepad_header"],
+[data-cell-name^="tracepad_ask_"] {
+  background: transparent;
+  box-shadow: none;
+}
+
+[data-cell-name="tracepad_setup"] > .tray > .absolute,
+[data-cell-name="tracepad_header"] > .tray > .absolute,
+[data-cell-name^="tracepad_ask_"] > .tray > .absolute,
+[data-cell-name="tracepad_setup"] > .absolute,
+[data-cell-name="tracepad_header"] > .absolute,
+[data-cell-name^="tracepad_ask_"] > .absolute,
+[data-cell-name="tracepad_setup"] [data-testid="cell-editor"],
+[data-cell-name="tracepad_header"] [data-testid="cell-editor"],
+[data-cell-name^="tracepad_ask_"] [data-testid="cell-editor"] {
+  display: none;
+}
+
+[data-cell-name="tracepad_setup"] [data-testid="console-output-area"],
+[data-cell-name="tracepad_header"] [data-testid="console-output-area"],
+[data-cell-name^="tracepad_ask_"] [data-testid="console-output-area"] {
+  padding: 0;
+}
+
+[data-cell-name="tracepad_setup"] [data-testid="console-output-area"] > span[contenteditable="true"],
+[data-cell-name="tracepad_header"] [data-testid="console-output-area"] > span[contenteditable="true"],
+[data-cell-name^="tracepad_ask_"] [data-testid="console-output-area"] > span[contenteditable="true"] {
+  display: none;
+}
+
+[data-cell-name="tracepad_header"] [data-cell-role="output"],
+[data-cell-name^="tracepad_ask_"] [data-cell-role="output"] {
+  padding-block: 0;
+}
+
+[data-cell-name="tracepad_header"] .output.block,
+[data-cell-name^="tracepad_ask_"] .output.block {
+  overflow: visible;
 }
 
 .tracepad-marimo-reference {
@@ -276,6 +360,10 @@ body {
 
   .tracepad-marimo-prompt {
     grid-template-columns: 1fr;
+  }
+
+  .tracepad-marimo-prompt-actions {
+    justify-content: flex-start;
   }
 
   .tracepad-marimo-grid {

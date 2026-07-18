@@ -45,24 +45,171 @@ def notebook_header(
     )
 
 
+_PROMPT_WIDGET_ESM = r"""
+const waitFor = (predicate, timeout = 2500) => new Promise((resolve, reject) => {
+  const started = Date.now();
+  const check = () => {
+    const result = predicate();
+    if (result) {
+      resolve(result);
+    } else if (Date.now() - started > timeout) {
+      reject(new Error("Timed out waiting for Marimo's AI editor."));
+    } else {
+      window.setTimeout(check, 40);
+    }
+  };
+  check();
+});
+
+const renderReferences = (text) => {
+  const fragment = document.createDocumentFragment();
+  const parts = text.split(/(@[A-Za-z_][A-Za-z0-9_]*)/g);
+  for (const part of parts) {
+    if (/^@[A-Za-z_][A-Za-z0-9_]*$/.test(part)) {
+      const reference = document.createElement("span");
+      reference.className = "tracepad-marimo-reference";
+      reference.textContent = part;
+      fragment.append(reference);
+    } else {
+      fragment.append(document.createTextNode(part));
+    }
+  }
+  return fragment;
+};
+
+function render({ model, el }) {
+  const text = model.get("text");
+  const label = model.get("label");
+
+  el.className = "tracepad-marimo-shell tracepad-marimo-prompt-widget";
+  el.innerHTML = `
+    <section class="tracepad-marimo-prompt">
+      <div class="tracepad-marimo-prompt-label"></div>
+      <div class="tracepad-marimo-prompt-text"></div>
+      <div class="tracepad-marimo-prompt-actions">
+        <button type="button" class="tracepad-marimo-generate">Generate</button>
+        <span class="tracepad-marimo-generate-status" aria-live="polite"></span>
+      </div>
+    </section>
+  `;
+
+  el.querySelector(".tracepad-marimo-prompt-label").textContent = label;
+  el.querySelector(".tracepad-marimo-prompt-text").append(renderReferences(text));
+
+  const button = el.querySelector(".tracepad-marimo-generate");
+  const status = el.querySelector(".tracepad-marimo-generate-status");
+
+  button.addEventListener("click", async () => {
+    button.disabled = true;
+    status.textContent = "Opening AI editor";
+
+    try {
+      const widgetHost = el.getRootNode()?.host || el;
+      const promptCell = widgetHost.closest(".marimo-cell");
+      const targetCell = promptCell?.parentElement?.nextElementSibling?.querySelector(".marimo-cell");
+      const editor = targetCell?.querySelector(".cm-content[contenteditable='true']");
+
+      if (!targetCell || !editor) {
+        throw new Error("Add an empty code cell directly below this Ask, then try again.");
+      }
+
+      editor.focus();
+      const actionButton = targetCell.querySelector(
+        "button[data-testid='cell-actions-button']"
+      );
+      if (!actionButton) {
+        throw new Error("Marimo's cell actions are unavailable for this cell.");
+      }
+      actionButton.click();
+
+      let aiAction;
+      try {
+        aiAction = await waitFor(() =>
+          [...document.querySelectorAll("[role='menuitem'], button")].find(
+            (candidate) =>
+              candidate.textContent?.trim().startsWith("Refactor with AI") &&
+              !candidate.disabled
+          )
+        );
+      } catch {
+        throw new Error("Configure a Marimo AI edit model in Settings, then try again.");
+      }
+      aiAction.click();
+
+      const aiInput = await waitFor(() =>
+        targetCell.querySelector("[contenteditable='true'][aria-placeholder^='Generate with AI']") ||
+        document.querySelector("[contenteditable='true'][aria-placeholder^='Generate with AI']")
+      );
+      aiInput.focus();
+
+      const selection = window.getSelection();
+      const range = document.createRange();
+      range.selectNodeContents(aiInput);
+      selection.removeAllRanges();
+      selection.addRange(range);
+      document.execCommand("insertText", false, text);
+
+      const submit = await waitFor(() => {
+        const icon = targetCell.querySelector("svg.lucide-send-horizontal") ||
+          document.querySelector("svg.lucide-send-horizontal");
+        const candidate = icon?.closest("button");
+        return candidate && !candidate.disabled ? candidate : null;
+      });
+      status.textContent = "Generating code";
+      submit.click();
+
+      await waitFor(
+        () => !document.querySelector("[contenteditable='true'][aria-placeholder^='Generate with AI']"),
+        120000,
+      );
+      status.textContent = "Code ready for review";
+    } catch (error) {
+      status.textContent = error instanceof Error ? error.message : String(error);
+    } finally {
+      button.disabled = false;
+    }
+  });
+}
+
+export default { render };
+"""
+
+
+try:
+    import anywidget as _anywidget
+    import traitlets as _traitlets
+except ImportError:  # Marimo support is optional for Jupyter-only installs.
+    _anywidget = None
+    _traitlets = None
+
+
+if _anywidget is not None and _traitlets is not None:
+
+    class _PromptWidget(_anywidget.AnyWidget):
+        _esm = _PROMPT_WIDGET_ESM
+
+        text = _traitlets.Unicode().tag(sync=True)
+        label = _traitlets.Unicode().tag(sync=True)
+
+else:
+    _PromptWidget = None  # type: ignore[misc,assignment]
+
+
+def _prompt_widget(text: str, label: str) -> Any:
+    if _PromptWidget is None:
+        raise RuntimeError(
+            "Interactive Marimo prompts require Tracepad's Marimo extra: "
+            "uv pip install -e '.[marimo]'"
+        )
+
+    return _PromptWidget(text=text, label=label)
+
+
 def prompt(text: str, *, number: str | int | None = None) -> Any:
-    """Render a persisted natural-language request above a Marimo code cell."""
-    mo = _mo()
+    """Render a request that can generate into the following Marimo code cell."""
+    _mo()
     label = f"Ask {number}" if number is not None else "Ask"
-    rendered = html.escape(text)
-    rendered = re.sub(
-        r"@([A-Za-z_][A-Za-z0-9_]*)",
-        r'<span class="tracepad-marimo-reference">@\1</span>',
-        rendered,
-    )
-    return mo.Html(
-        '<div class="tracepad-marimo-shell">'
-        '<section class="tracepad-marimo-prompt">'
-        f'<div class="tracepad-marimo-prompt-label">{html.escape(label)}</div>'
-        f'<div class="tracepad-marimo-prompt-text">{rendered}</div>'
-        "</section>"
-        "</div>"
-    )
+    return _prompt_widget(text, label)
 
 
 @dataclass(slots=True)

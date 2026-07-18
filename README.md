@@ -127,15 +127,18 @@ uv run --no-sync marimo edit demo/tracepad_marimo_demo.py
 
 The same commands work in Windows PowerShell. Marimo opens the demo as a
 reactive Python notebook containing prompts but no prewritten analysis. Work
-from top to bottom: select the empty cell below each prompt, choose **Generate
-with AI**, and run the generated cell before continuing to the next prompt.
+from top to bottom: click **Generate** on a Tracepad Ask, review the code Marimo
+places in the native cell immediately below it, then run that cell before
+continuing. You do not need to retype or paste the displayed Ask.
 
-Configure a provider in Marimo's **Settings > AI** before generating. Marimo
-supports hosted providers, OpenRouter, Ollama, and custom OpenAI-compatible
-endpoints; Tracepad does not select a provider or model. Repository rules in
-`pyproject.toml` ask the model to create one concise executable cell, reuse
-live variables named with `@`, preserve fitted models, and finish with an
-appropriate Tracepad inspection card.
+Configure an **Edit model** in Marimo's **Settings > AI** before generating.
+Marimo supports hosted providers, OpenRouter, Ollama, and custom
+OpenAI-compatible endpoints; Tracepad does not select a provider or model.
+The Tracepad button opens Marimo's native AI edit flow, supplies the saved Ask,
+and leaves Marimo's review and acceptance controls intact. Repository rules in
+`pyproject.toml` ask the model to create one concise executable cell, reuse live
+variables named with `@`, preserve fitted models, and finish with an appropriate
+Tracepad inspection card.
 
 Marimo references are native Python variables. A prompt such as `Using
 @monthly_revenue, plot net revenue over time` lets Marimo attach that live
@@ -273,8 +276,10 @@ Values entered in JupyterLab live only in the Jupyter server process.
 
 1. Start the demo with `uv run --no-sync marimo edit demo/tracepad_marimo_demo.py`.
 2. Open **Settings > AI** in Marimo.
-3. Choose and configure an exact provider and model.
-4. Select **Generate with AI** below a prompt card to create a native cell.
+3. Choose and configure an exact **Edit model**.
+4. Click **Generate** on a Tracepad Ask. Tracepad sends that Ask to Marimo's AI
+   editor for the native cell immediately below it.
+5. Review the generated code, accept it, and run the cell normally.
 
 Tracepad contributes project-level generation rules but delegates provider
 credentials and request transport to Marimo. Do not put credentials in the
@@ -404,7 +409,7 @@ paths and notebook content before posting.
 | `vscode-extension/` | Native VS Code notebook host and VSIX package |
 | `src/tracepad/marimo.py` | Marimo-native prompts, inspection, model diagnostics, and lineage helpers |
 | `demo/tracepad_marimo_demo.py` | Reactive Marimo demo using the synthetic retail data |
-| `style/marimo.css` | Repository-local cobalt styling loaded through `pyproject.toml` |
+| `style/marimo.css` | Notebook-scoped cobalt styling loaded by the bundled Marimo demo |
 | `scripts/*.py` with `.sh`/`.ps1` wrappers | Cross-platform installation, launch, verification, and packaging |
 
 These files belong to separate packaging layers; none are interchangeable.

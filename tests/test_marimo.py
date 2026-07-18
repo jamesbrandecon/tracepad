@@ -54,8 +54,12 @@ def test_inspect_preserves_the_original_value():
 def test_prompt_returns_a_marimo_display_object():
     rendered = prompt("Using @orders, summarize revenue.", number=2)
 
-    assert "tracepad-marimo-prompt" in rendered.text
-    assert "@orders" in rendered.text
+    assert rendered.text == "Using @orders, summarize revenue."
+    assert rendered.label == "Ask 2"
+    assert "Generate" in rendered._esm
+    assert "Refactor with AI" in rendered._esm
+    assert 'document.execCommand("insertText", false, text)' in rendered._esm
+    assert "Configure a Marimo AI edit model in Settings" in rendered._esm
 
 
 def test_demo_is_importable_and_defines_a_marimo_app():
@@ -69,6 +73,8 @@ def test_demo_is_importable_and_defines_a_marimo_app():
     assert module.app is not None
     assert module.__generated_with.startswith("0.23.")
     assert source.count("tracepad_marimo.prompt(") == 5
+    assert source.count("@app.cell\ndef _():\n    return") == 5
+    assert 'css_file="../style/marimo.css"' in source
     assert "pd.read_csv" not in source
     assert "plt.subplots" not in source
     assert ".fit()" not in source
@@ -80,3 +86,4 @@ def test_project_config_runs_marimo_setup_cells_on_open():
     runtime_section = project_config.split("[tool.marimo.runtime]", maxsplit=1)[1]
     runtime_section = runtime_section.split("[tool.marimo.ai]", maxsplit=1)[0]
     assert "auto_instantiate = true" in runtime_section
+    assert "custom_css" not in project_config

@@ -33,7 +33,9 @@ demo = [
   "statsmodels>=0.14"
 ]
 marimo = [
-  "marimo>=0.23.1,<0.24; python_version >= '3.10'"
+  "anywidget>=0.11,<1; python_version >= '3.10'",
+  "marimo>=0.23.1,<0.24; python_version >= '3.10'",
+  "pydantic-ai-slim[openai]>=1.52.0,<3; python_version >= '3.10'"
 ]
 dev = [
   "build>=1.2",
@@ -49,8 +51,8 @@ tracepad = "tracepad.server"
 "jupyter-config/jupyter_server_config.d/tracepad.json" = "etc/jupyter/jupyter_server_config.d/tracepad.json"
 "tracepad_demo.ipynb" = "share/tracepad/tracepad_demo.ipynb"
 "demo/tracepad_demo_clean.ipynb" = "share/tracepad/tracepad_demo_clean.ipynb"
-"demo/tracepad_marimo_demo.py" = "share/tracepad/tracepad_marimo_demo.py"
-"demo/data/retail_orders.csv" = "share/tracepad/data/retail_orders.csv"
+"demo/tracepad_marimo_demo.py" = "share/tracepad/demo/tracepad_marimo_demo.py"
+"demo/data/retail_orders.csv" = "share/tracepad/demo/data/retail_orders.csv"
 "style/marimo.css" = "share/tracepad/style/marimo.css"
 
 [tool.hatch.build.hooks.jupyter-builder]
@@ -62,7 +64,6 @@ editable-build-kwargs = { build_cmd = "build", npm = ["pnpm"] }
 
 [tool.marimo.display]
 cell_output = "below"
-custom_css = ["style/marimo.css"]
 dataframes = "rich"
 default_width = "full"
 reference_highlighting = true
