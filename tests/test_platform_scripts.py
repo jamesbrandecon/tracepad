@@ -5,7 +5,7 @@ sys.path.insert(0, str(Path(__file__).parents[1] / "scripts"))
 
 from platform_support import process_command, resolve_venv, venv_executable, venv_python
 from install import kernel_install_arguments
-from verify_install import capture_json, verification_environment
+from verify_install import kernelspec_path, verification_environment
 
 
 def test_virtual_environment_paths_are_native(monkeypatch, tmp_path):
@@ -48,7 +48,8 @@ def test_installer_registers_a_recognizable_local_kernel(tmp_path):
         "-m",
         "ipykernel",
         "install",
-        "--sys-prefix",
+        "--prefix",
+        str(venv),
         "--name",
         "tracepad",
         "--display-name",
@@ -56,13 +57,7 @@ def test_installer_registers_a_recognizable_local_kernel(tmp_path):
     ]
 
 
-def test_json_verification_ignores_stderr_warnings(tmp_path):
-    value = capture_json(
-        sys.executable,
-        [
-            "-c",
-            "import sys; print('warning', file=sys.stderr); print('{\"ready\": true}')",
-        ],
-        verification_environment(tmp_path / "env"),
+def test_kernel_verification_uses_the_environment_data_directory(tmp_path):
+    assert kernelspec_path(tmp_path / ".venv") == (
+        tmp_path / ".venv" / "share" / "jupyter" / "kernels" / "tracepad" / "kernel.json"
     )
-    assert value == {"ready": True}

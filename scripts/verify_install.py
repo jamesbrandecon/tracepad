@@ -40,17 +40,8 @@ def capture(executable: str, arguments: list[str], environment: dict[str, str]) 
     return result.stdout
 
 
-def capture_json(executable: str, arguments: list[str], environment: dict[str, str]) -> dict[str, object]:
-    result = subprocess.run(
-        [executable, *arguments],
-        cwd=ROOT_DIR,
-        env=environment,
-        check=True,
-        text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    )
-    return json.loads(result.stdout)
+def kernelspec_path(venv: Path) -> Path:
+    return venv / "share" / "jupyter" / "kernels" / "tracepad" / "kernel.json"
 
 
 def main() -> int:
@@ -71,13 +62,18 @@ def main() -> int:
     version = capture(python, ["-c", "import tracepad; print(tracepad.__version__)"], environment).strip()
     server = capture(jupyter, ["server", "extension", "list"], environment)
     lab = capture(jupyter, ["labextension", "list"], environment)
-    kernels = capture_json(jupyter, ["kernelspec", "list", "--json"], environment)
+    kernel_file = kernelspec_path(venv)
     if "tracepad" not in server.lower():
         raise RuntimeError("Tracepad's Jupyter server extension is not enabled.")
     if "@tracepad/jupyterlab" not in lab.lower():
         raise RuntimeError("Tracepad's JupyterLab extension is not installed.")
-    if "tracepad" not in kernels.get("kernelspecs", {}):
+    if not kernel_file.is_file():
         raise RuntimeError("Tracepad's local Python kernelspec is not installed.")
+    kernel = json.loads(kernel_file.read_text(encoding="utf-8"))
+    arguments = kernel.get("argv", [])
+    kernel_python = Path(arguments[0]) if arguments else None
+    if kernel.get("language") != "python" or not kernel_python or not kernel_python.exists():
+        raise RuntimeError("Tracepad's local Python kernelspec does not point to a working interpreter.")
 
     print(f"Tracepad {version}: Python import OK")
     print("Tracepad Jupyter server extension: OK")
