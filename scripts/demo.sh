@@ -4,10 +4,9 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 VENV_DIR="${TRACEPAD_VENV:-${ROOT_DIR}/.venv}"
 
-if [[ ! -x "${VENV_DIR}/bin/jupyter" ]]; then
+if [[ ! -x "${VENV_DIR}/bin/python" ]]; then
   echo "Tracepad is not installed. Run ./scripts/install.sh first." >&2
   exit 1
 fi
 
-cd "${ROOT_DIR}"
-exec "${VENV_DIR}/bin/jupyter" lab "tracepad_demo.ipynb"
+exec "${VENV_DIR}/bin/python" "${ROOT_DIR}/scripts/demo.py" --venv "${VENV_DIR}" "$@"

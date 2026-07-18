@@ -5,6 +5,7 @@
 .pytest_cache/
 .ruff_cache/
 .venv/
+.vscode/
 __pycache__/
 *.egg-info/
 *.log
@@ -13,6 +14,7 @@ dist/
 lib/
 node_modules/
 Untitled*.ipynb
+uv.lock
 
 # Keep the prebuilt JupyterLab extension so repository installs do not need Node.
 !tracepad/labextension/

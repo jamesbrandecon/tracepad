@@ -23,12 +23,4 @@ if [[ -z "${PYTHON_BIN}" ]]; then
   exit 1
 fi
 
-if [[ ! -x "${VENV_DIR}/bin/python" ]]; then
-  "${PYTHON_BIN}" -m venv "${VENV_DIR}"
-fi
-
-"${VENV_DIR}/bin/python" -m pip install "${ROOT_DIR}[demo]"
-
-echo
-echo "Tracepad is installed in ${VENV_DIR}"
-echo "Run ./scripts/demo.sh to open the guided notebook."
+exec "${PYTHON_BIN}" "${ROOT_DIR}/scripts/install.py" --venv "${VENV_DIR}" "$@"

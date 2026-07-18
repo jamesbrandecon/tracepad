@@ -1,6 +1,6 @@
 {
   "name": "@tracepad/jupyterlab",
-  "version": "0.1.0",
+  "version": "0.3.10",
   "description": "Tracepad full-page JupyterLab interface",
   "packageManager": "pnpm@10.17.1",
   "license": "MIT",
@@ -13,11 +13,13 @@
   ],
   "scripts": {
     "build": "rimraf lib tracepad/labextension && tsc -p tsconfig.json && node scripts/build-labextension.mjs",
+    "build:vscode": "pnpm --dir vscode-extension build",
     "build:lib": "tsc -p tsconfig.json",
     "build:labextension": "node scripts/build-labextension.mjs",
     "clean": "rimraf lib tracepad/labextension",
     "lint": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run src"
+    "test": "vitest run src",
+    "test:vscode": "pnpm --dir vscode-extension test"
   },
   "dependencies": {
     "@jupyterlab/application": "^4.4.0",
@@ -45,7 +47,7 @@
     "extension": "lib/index.js",
     "outputDir": "tracepad/labextension",
     "_build": {
-      "load": "static/remoteEntry.02ece9a64665b8364959.js",
+      "load": "static/remoteEntry.009eb1ca7db7481a6da1.js",
       "extension": "./extension"
     }
   }

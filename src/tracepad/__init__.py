@@ -1,6 +1,9 @@
 """Tracepad JupyterLab extension."""
 
-__version__ = "0.1.0"
+from .runtime import present
+
+__version__ = "0.3.10"
+__all__ = ["present"]
 
 
 def _jupyter_server_extension_points():
