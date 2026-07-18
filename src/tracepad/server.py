@@ -241,7 +241,8 @@ def _configure_provider(body: dict[str, Any]) -> dict[str, Any]:
 def _system_instructions() -> str:
     return (
         "You generate concise, executable notebook code. Return JSON only with keys "
-        "code and notes. Use the supplied kernel language and do not include markdown "
+        "code and notes. The code value must be one string containing the entire program, "
+        "never an array. Use the supplied kernel language and do not include markdown "
         "fences or credentials. Use existing notebook variables and Tracepad references "
         "when supplied. Make the final expression the table, plot, or model the user is "
         "most likely to inspect. For model objects, preserve the fitted object as the final "
@@ -399,7 +400,15 @@ def _ollama_generation(
         payload={
             "model": model,
             "stream": False,
-            "format": "json",
+            "format": {
+                "type": "object",
+                "properties": {
+                    "code": {"type": "string"},
+                    "notes": {"type": "string"},
+                },
+                "required": ["code"],
+                "additionalProperties": False,
+            },
             "messages": [
                 {"role": "system", "content": _system_instructions()},
                 {"role": "user", "content": _generation_input(prompt, language, context)},

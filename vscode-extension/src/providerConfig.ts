@@ -36,6 +36,7 @@ export interface RegistryOptions {
   workspaceRoot?: string;
   explicitPath?: string;
   profileOverride?: string;
+  modelOverrides?: Record<string, string>;
   environment?: NodeJS.ProcessEnv;
   userConfigRoot?: string;
   platform?: NodeJS.Platform;
@@ -167,7 +168,12 @@ export function loadProviderRegistry(options: RegistryOptions = {}): ProviderReg
       id,
       label: String(raw.label || id),
       provider,
-      model: String((modelEnvironment && environment[modelEnvironment]) || raw.model || ""),
+      model: String(
+        options.modelOverrides?.[id]
+        || (modelEnvironment && environment[modelEnvironment])
+        || raw.model
+        || ""
+      ),
       parameters: mapping(raw.parameters ?? {}, `profile ${id} parameters`)
     };
   }

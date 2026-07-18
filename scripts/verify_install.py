@@ -4,8 +4,10 @@
 from __future__ import annotations
 
 import argparse
+import os
 import subprocess
 import sys
+from pathlib import Path
 
 from platform_support import ROOT_DIR, resolve_venv, venv_executable, venv_python
 
@@ -16,10 +18,19 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def capture(executable: str, arguments: list[str]) -> str:
+def verification_environment(venv: Path) -> dict[str, str]:
+    environment = dict(os.environ)
+    config_dir = venv / ".tracepad-jupyter-config"
+    config_dir.mkdir(parents=True, exist_ok=True)
+    environment["JUPYTER_CONFIG_DIR"] = str(config_dir)
+    return environment
+
+
+def capture(executable: str, arguments: list[str], environment: dict[str, str]) -> str:
     result = subprocess.run(
         [executable, *arguments],
         cwd=ROOT_DIR,
+        env=environment,
         check=True,
         text=True,
         stdout=subprocess.PIPE,
@@ -41,10 +52,11 @@ def main() -> int:
         print("Jupyter launcher was not found in the Tracepad virtual environment.", file=sys.stderr)
         return 1
     jupyter = str(jupyter_path)
+    environment = verification_environment(venv)
 
-    version = capture(python, ["-c", "import tracepad; print(tracepad.__version__)"]).strip()
-    server = capture(jupyter, ["server", "extension", "list"])
-    lab = capture(jupyter, ["labextension", "list"])
+    version = capture(python, ["-c", "import tracepad; print(tracepad.__version__)"], environment).strip()
+    server = capture(jupyter, ["server", "extension", "list"], environment)
+    lab = capture(jupyter, ["labextension", "list"], environment)
     if "tracepad" not in server.lower():
         raise RuntimeError("Tracepad's Jupyter server extension is not enabled.")
     if "@tracepad/jupyterlab" not in lab.lower():

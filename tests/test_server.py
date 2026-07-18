@@ -187,6 +187,27 @@ def test_model_prompt_preserves_inspectable_final_object_contract():
     instructions = server._system_instructions()
     assert "final expression" in instructions
     assert "summary, coefficients, fitted values, predict" in instructions
+    assert "code value must be one string" in instructions
+
+
+def test_ollama_generation_requests_a_string_code_schema(monkeypatch):
+    captured = {}
+
+    def fake_request(url, **kwargs):
+        captured.update(kwargs["payload"])
+        return {"message": {"content": '{"code":"[1, 2, 3]","notes":"Ready"}'}}
+
+    monkeypatch.setattr(server, "_json_request", fake_request)
+    result = server._ollama_generation(
+        "Create a list",
+        "python",
+        {},
+        "tiny-model",
+        "http://127.0.0.1:11434",
+    )
+
+    assert result["code"] == "[1, 2, 3]"
+    assert captured["format"]["properties"]["code"] == {"type": "string"}
 
 
 def test_server_extension_point_is_discoverable():

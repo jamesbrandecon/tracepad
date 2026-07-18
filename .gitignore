@@ -13,6 +13,7 @@ dist/
 lib/
 node_modules/
 Untitled*.ipynb
+uv.lock
 
 # Keep the prebuilt JupyterLab extension so repository installs do not need Node.
 !tracepad/labextension/

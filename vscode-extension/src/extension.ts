@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { dirname } from "node:path";
 import * as vscode from "vscode";
 import { followUpChoices } from "./followUpChoices";
-import { generateCode } from "./providerClient";
+import { discoverOllamaModels, generateCode } from "./providerClient";
 import {
   discoverConfigurationRoot,
   loadProviderRegistry,
@@ -95,6 +95,7 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand("tracepad.showLineage", (target?: unknown) => showLineage(target)),
     vscode.commands.registerCommand("tracepad.removeEmptyTurn", (target?: unknown) => removeEmptyTurn(target)),
     vscode.commands.registerCommand("tracepad.renameResult", (target?: unknown) => renameResult(target)),
+    vscode.commands.registerCommand("tracepad.setupModel", () => setupModel(context)),
     vscode.commands.registerCommand("tracepad.selectProfile", () => selectProfile(context)),
     vscode.commands.registerCommand("tracepad.configureCredential", () => configureCredential(context)),
     vscode.commands.registerCommand("tracepad.showDiagnostics", () => showDiagnostics(context, output))
@@ -273,7 +274,7 @@ class TracepadModelStatus implements vscode.Disposable {
   private readonly subscriptions: vscode.Disposable[];
 
   constructor(private readonly context: vscode.ExtensionContext) {
-    this.item.command = "tracepad.selectProfile";
+    this.item.command = "tracepad.setupModel";
     this.item.name = "Tracepad model";
     this.subscriptions = [
       this.item,
@@ -294,7 +295,7 @@ class TracepadModelStatus implements vscode.Disposable {
       const profile = registry.profiles[registry.activeProfile];
       if (!profile) {
         this.item.text = "$(warning) Tracepad model setup";
-        this.item.tooltip = "Select a Tracepad model profile before generating code.";
+        this.item.tooltip = "Set up a Tracepad provider and model before generating code.";
         this.item.backgroundColor = new vscode.ThemeColor("statusBarItem.warningBackground");
         this.item.show();
         return;
@@ -304,8 +305,8 @@ class TracepadModelStatus implements vscode.Disposable {
       const model = profile.model || (provider.driver === "ollama-chat" ? "Auto-detect" : "Select model");
       this.item.text = `$(sparkle) ${provider.label} · ${model}`;
       this.item.tooltip = ready
-        ? `Tracepad uses ${profile.label} (${profile.model}). Click to change model profile.`
-        : `${profile.label} needs setup. Click to select or configure a model profile.`;
+        ? `Tracepad uses ${profile.label} (${profile.model}). Click to review or change setup.`
+        : `${profile.label} needs setup. Click to choose a model and configure credentials.`;
       this.item.backgroundColor = ready ? undefined : new vscode.ThemeColor("statusBarItem.warningBackground");
       this.item.show();
     } catch (error) {
@@ -679,11 +680,11 @@ async function generatePromptCell(
   if (!activeProfile) {
     activeGenerations.delete(metadata.turnId);
     const action = await vscode.window.showErrorMessage(
-      "Select a Tracepad model profile before generating code.",
-      "Select profile",
+      "Set up a Tracepad provider and model before generating code.",
+      "Set up model",
       "Show diagnostics"
     );
-    if (action === "Select profile") await selectProfile(context);
+    if (action === "Set up model") await setupModel(context);
     if (action === "Show diagnostics") await showDiagnostics(context, output);
     return undefined;
   }
@@ -691,15 +692,12 @@ async function generatePromptCell(
   if (!profileReady(activeProfile, registry.providers, registry.environment)) {
     activeGenerations.delete(metadata.turnId);
     output.appendLine(`[${new Date().toISOString()}] Profile ${activeProfile.id} is not ready.`);
-    const actions = activeProvider.requiresApiKey
-      ? ["Configure credentials", "Select profile", "Show diagnostics"]
-      : ["Select profile", "Show diagnostics"];
+    const actions = ["Set up model", "Show diagnostics"];
     const action = await vscode.window.showErrorMessage(
-      `${activeProfile.label} is not ready. Configure ${activeProvider.apiKeyEnv || "its model"} before generating.`,
+      `${activeProfile.label} is not ready. Choose its model${activeProvider.requiresApiKey ? " and credentials" : ""} before generating.`,
       ...actions
     );
-    if (action === "Configure credentials") await configureCredential(context, activeProvider.id);
-    if (action === "Select profile") await selectProfile(context);
+    if (action === "Set up model") await setupModel(context);
     if (action === "Show diagnostics") await showDiagnostics(context, output);
     return undefined;
   }
@@ -1012,6 +1010,106 @@ async function removeEmptyTurn(target: unknown): Promise<void> {
   }
 }
 
+async function setupModel(context: vscode.ExtensionContext): Promise<void> {
+  const notebookUri = vscode.window.activeNotebookEditor?.notebook.uri;
+  const settings = vscode.workspace.getConfiguration("tracepad", notebookUri);
+  let registry: ProviderRegistry;
+  try {
+    registry = await resolvedProviderRegistry(context, notebookUri);
+  } catch (error) {
+    void vscode.window.showErrorMessage(`Tracepad configuration failed: ${errorMessage(error)}`);
+    return;
+  }
+
+  const selected = await vscode.window.showQuickPick(
+    Object.values(registry.profiles).map(profile => {
+      const provider = registry.providers[profile.provider];
+      return {
+        label: `${profile.id === registry.activeProfile ? "$(check) " : ""}${profile.label}`,
+        description: provider.label,
+        detail: profile.model || (provider.driver === "ollama-chat" ? "Discover an installed model" : "Choose an exact model name"),
+        profile,
+        provider
+      };
+    }),
+    {
+      title: "Set up Tracepad model",
+      placeHolder: "Choose a provider profile"
+    }
+  );
+  if (!selected) return;
+
+  let model = selected.profile.model;
+  let enterModelManually = selected.provider.driver !== "ollama-chat";
+  if (selected.provider.driver === "ollama-chat") {
+    try {
+      const models = await vscode.window.withProgress(
+        { location: vscode.ProgressLocation.Notification, title: "Discovering Ollama models", cancellable: false },
+        () => discoverOllamaModels(selected.provider)
+      );
+      const modelChoice = await vscode.window.showQuickPick([
+        ...models.map(value => ({ label: value, model: value })),
+        { label: "$(edit) Enter another model name", model: "" }
+      ], {
+        title: "Choose an Ollama model",
+        placeHolder: model || "Select an installed model"
+      });
+      if (!modelChoice) return;
+      model = modelChoice.model;
+      enterModelManually = !model;
+    } catch (error) {
+      const action = await vscode.window.showWarningMessage(
+        `Tracepad could not discover Ollama models: ${errorMessage(error)}`,
+        "Enter model manually"
+      );
+      if (action !== "Enter model manually") return;
+      enterModelManually = true;
+    }
+  }
+  if (enterModelManually) {
+    model = await vscode.window.showInputBox({
+      title: `${selected.provider.label} model`,
+      prompt: "Enter the exact model identifier. This non-secret value is stored in VS Code settings.",
+      value: model,
+      ignoreFocusOut: true,
+      validateInput: value => value.trim() ? undefined : "Enter an exact model identifier."
+    }) ?? "";
+  }
+  model = model.trim();
+  if (!model) return;
+
+  let apiKey = "";
+  const hasCredential = !selected.provider.requiresApiKey
+    || Boolean(selected.provider.apiKeyEnv && registry.environment[selected.provider.apiKeyEnv]);
+  if (!hasCredential) {
+    apiKey = await vscode.window.showInputBox({
+      title: `${selected.provider.label} API key`,
+      prompt: "Stored in VS Code SecretStorage; never written to settings, YAML, or notebook metadata.",
+      password: true,
+      ignoreFocusOut: true,
+      validateInput: value => value.trim() ? undefined : "Enter an API key."
+    }) ?? "";
+    apiKey = apiKey.trim();
+    if (!apiKey) return;
+  }
+
+  const target = configurationTarget(notebookUri);
+  const modelOverrides = settings.get<Record<string, string>>("models", {});
+  await settings.update("profile", selected.profile.id, target);
+  await settings.update("models", { ...modelOverrides, [selected.profile.id]: model }, target);
+  if (apiKey && selected.provider.apiKeyEnv) {
+    await context.secrets.store(secretStorageKey(selected.provider.apiKeyEnv), apiKey);
+  }
+
+  const configured = await resolvedProviderRegistry(context, notebookUri);
+  const profile = configured.profiles[configured.activeProfile];
+  if (!profile || !profileReady(profile, configured.providers, configured.environment)) {
+    void vscode.window.showErrorMessage("Tracepad saved the selection, but the model is not ready. Run Tracepad: Show Diagnostics for details.");
+    return;
+  }
+  void vscode.window.showInformationMessage(`Tracepad is ready with ${selected.provider.label} · ${model}.`);
+}
+
 async function selectProfile(context: vscode.ExtensionContext): Promise<void> {
   const notebookUri = vscode.window.activeNotebookEditor?.notebook.uri;
   const settings = vscode.workspace.getConfiguration("tracepad", notebookUri);
@@ -1040,12 +1138,12 @@ async function selectProfile(context: vscode.ExtensionContext): Promise<void> {
   await settings.update("profile", selected.profile, target);
   const profile = registry.profiles[selected.profile];
   const provider = registry.providers[profile.provider];
-  if (!profileReady(profile, registry.providers, registry.environment) && provider.requiresApiKey) {
+  if (!profileReady(profile, registry.providers, registry.environment)) {
     const action = await vscode.window.showWarningMessage(
-      `${selected.plainLabel} needs ${provider.apiKeyEnv || "credentials"}.`,
-      "Configure now"
+      `${selected.plainLabel} needs a model${provider.requiresApiKey ? " and credentials" : ""}.`,
+      "Set up now"
     );
-    if (action === "Configure now") await configureCredential(context, provider.id);
+    if (action === "Set up now") await setupModel(context);
     return;
   }
   void vscode.window.showInformationMessage(`Tracepad will use ${selected.plainLabel}.`);
@@ -1097,7 +1195,8 @@ async function resolvedProviderRegistry(
   const options = {
     workspaceRoot: configurationRoot(notebookUri),
     explicitPath: settings.get<string>("configPath", ""),
-    profileOverride: settings.get<string>("profile", "")
+    profileOverride: settings.get<string>("profile", ""),
+    modelOverrides: settings.get<Record<string, string>>("models", {})
   };
   const initial = loadProviderRegistry(options);
   const environment = { ...process.env };

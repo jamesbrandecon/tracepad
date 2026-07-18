@@ -48,9 +48,10 @@ Choose one notebook host and one model provider before starting:
 | OpenAI | You have an OpenAI API key and exact model name |
 | OpenRouter | You have an OpenRouter key and exact provider/model id |
 
-Tracepad never selects a default model. An installation agent can clone,
-build, launch, and verify Tracepad, but it should not request, echo, or write an
-API key. The user enters hosted-provider credentials through Tracepad's model
+Tracepad never selects a default model. Both hosts provide an in-product setup
+flow for choosing an exact model. An installation agent can clone, build,
+launch, and verify Tracepad, but it should not request, echo, or write an API
+key. The user enters hosted-provider credentials through Tracepad's model
 dialog or VS Code SecretStorage.
 
 ### Authenticate to the private repository
@@ -136,8 +137,9 @@ Windows PowerShell:
 The installer resolves pnpm or Corepack, builds the locked VSIX, installs the
 Microsoft Jupyter dependency, and installs Tracepad. Reload VS Code, open an
 `.ipynb`, and select `.venv/bin/python` on macOS/Linux or
-`.venv\Scripts\python.exe` on Windows as the kernel. Choose **AI Prompt** in
-the notebook toolbar or begin a Markdown cell with `%%ai`.
+`.venv\Scripts\python.exe` on Windows as the kernel. Choose **Model** once to
+select a provider, exact model, and any required credential. Then choose
+**AI Prompt** or begin a Markdown cell with `%%ai`.
 
 ![Annotated Tracepad generation flow in VS Code](docs/images/tracepad-vscode-notebook.png)
 
@@ -153,7 +155,7 @@ Use the `Option/Alt+T` chord family:
 | `I` | Insert a prior `@result` reference |
 | `L` | Show lineage |
 | `A` | Rename the selected result |
-| `M` | Select the model profile |
+| `M` | Set up or change the model |
 
 Generated code is collapsed by default but remains available through VS
 Code's native cell expander. See
@@ -172,12 +174,18 @@ Result cards keep **Follow-up** (create an AI child turn) separate from
 ## Configure an AI model
 
 Tracepad includes Ollama, OpenAI, and OpenRouter adapters but does not choose a
-provider or model. Generation remains disabled until an exact model is
-selected. API keys are never stored in notebooks or YAML.
+provider or model. Generation remains disabled until the user selects an exact
+model. API keys are never stored in notebooks, settings, or YAML.
 
-For a reproducible workspace configuration, create `tracepad.yaml` beside the
-notebook. An installation agent may create this file after the user supplies
-the provider and model name, but it must leave credentials out:
+For a first run, use the **Model** control in JupyterLab or VS Code. Hosted
+providers ask for an exact model and store the key only in the current
+Jupyter server process or VS Code SecretStorage. Ollama discovers models from
+the local server and also permits manual model entry.
+
+For shared parameters or multiple reusable profiles, optionally create
+`tracepad.yaml` beside the notebook. An installation agent may create this
+file after the user supplies the provider and model name, but it must leave
+credentials out:
 
 ```yaml
 version: 1
@@ -199,8 +207,8 @@ key. Tracepad reads workspace `tracepad.yaml`, the user configuration at
 ### JupyterLab model handoff
 
 1. Start Tracepad with `./scripts/demo.sh` or `.\scripts\demo.ps1`.
-2. Select the model control in the Tracepad header.
-3. Choose the configured profile or enter the exact provider and model.
+2. Select **Model** in the Tracepad header.
+3. Choose the provider profile and exact model.
 4. The user enters the OpenAI or OpenRouter key when prompted.
 5. For Ollama, confirm `ollama serve` is running and select a discovered model.
 
@@ -210,18 +218,22 @@ Values entered in JupyterLab live only in the Jupyter server process.
 
 ### VS Code model handoff
 
-1. Run **Tracepad: Select Model** and choose the configured profile.
-2. Run **Tracepad: Configure Provider Credentials**.
-3. The user enters the hosted-provider key; VS Code stores it in
+1. Choose **Model** in the notebook toolbar or run **Tracepad: Set Up Model**.
+2. Choose a provider profile and enter or select the exact model.
+3. The user enters a hosted-provider key when prompted; VS Code stores it in
    SecretStorage rather than settings, YAML, or notebook metadata.
-4. Run **Tracepad: Show Diagnostics** and confirm the selected provider and
-   model are ready.
+4. Run **Tracepad: Show Diagnostics** and confirm `Ready: true`.
+
+VS Code remembers non-secret model choices per profile in the workspace or
+user settings. `tracepad.yaml` remains the better choice when a team needs
+named profiles with shared generation parameters.
 
 Environment variables remain supported for automated or headless setups:
 `TRACEPAD_PROFILE`, `TRACEPAD_OPENAI_MODEL`, `TRACEPAD_OLLAMA_MODEL`,
 `TRACEPAD_OPENROUTER_MODEL`, `OPENAI_API_KEY`, `OPENROUTER_API_KEY`, and
 `OLLAMA_HOST`. A VS Code window launched from the macOS Dock may not inherit
-shell variables, so YAML plus SecretStorage is the preferred desktop setup.
+shell variables, so VS Code settings or YAML plus SecretStorage is the
+preferred desktop setup.
 
 ## Installation success criteria
 
@@ -233,6 +245,14 @@ An agent-assisted setup is complete when:
 - the selected provider and exact model report ready;
 - a `%%ai` prompt generates editable code; and
 - the user, not the agent, supplied any hosted-provider credential.
+
+## Report an alpha issue
+
+Open a GitHub bug report and include the smallest reproducible notebook or a
+screenshot using synthetic data. In VS Code, run **Tracepad: Show
+Diagnostics** and paste its output. In JupyterLab, include the model status and
+relevant server log lines. Diagnostics omit API key values, but review local
+paths and notebook content before posting.
 
 ## Repository layout
 

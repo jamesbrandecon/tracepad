@@ -2,7 +2,7 @@
   "name": "tracepad-vscode",
   "displayName": "Tracepad",
   "description": "AI-first turns for native Jupyter notebooks in VS Code",
-  "version": "0.3.8",
+  "version": "0.3.9",
   "publisher": "tracepad",
   "private": true,
   "icon": "media/tracepad-logo.png",
@@ -26,6 +26,8 @@
     "onNotebook:jupyter-notebook",
     "onCommand:tracepad.addTurn",
     "onCommand:tracepad.generate",
+    "onCommand:tracepad.setupModel",
+    "onCommand:tracepad.showDiagnostics",
     "onRenderer:tracepad.resultRenderer"
   ],
   "contributes": {
@@ -77,10 +79,15 @@
         "title": "Tracepad: Show Result Lineage"
       },
       {
-        "command": "tracepad.selectProfile",
-        "title": "Tracepad: Select Model",
+        "command": "tracepad.setupModel",
+        "title": "Tracepad: Set Up Model",
         "shortTitle": "Model",
         "icon": "$(settings-gear)"
+      },
+      {
+        "command": "tracepad.selectProfile",
+        "title": "Tracepad: Select Model",
+        "shortTitle": "Select Model"
       },
       {
         "command": "tracepad.configureCredential",
@@ -99,7 +106,7 @@
           "group": "navigation/add@0"
         },
         {
-          "command": "tracepad.selectProfile",
+          "command": "tracepad.setupModel",
           "when": "notebookType == jupyter-notebook",
           "group": "navigation/add@1"
         }
@@ -155,7 +162,7 @@
         "when": "notebookEditorFocused && notebookType == jupyter-notebook"
       },
       {
-        "command": "tracepad.selectProfile",
+        "command": "tracepad.setupModel",
         "key": "alt+t m",
         "mac": "alt+t m",
         "when": "notebookEditorFocused && notebookType == jupyter-notebook"
@@ -186,6 +193,15 @@
           "default": "",
           "scope": "resource",
           "description": "Optional Tracepad YAML path. Relative paths resolve from the workspace root."
+        },
+        "tracepad.models": {
+          "type": "object",
+          "default": {},
+          "scope": "resource",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Exact model identifiers selected for Tracepad profiles. YAML and environment configuration remain available for shared or advanced setups."
         },
         "tracepad.collapseGeneratedCode": {
           "type": "boolean",

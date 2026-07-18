@@ -45,8 +45,14 @@ pnpm --dir vscode-extension build
 ## Configure AI
 
 Tracepad provides Ollama, OpenAI, and OpenRouter adapters but does not choose a
-default model. Put the provider and exact model name in workspace
-`tracepad.yaml` without including an API key:
+default model. For a first run, choose **Model** in the notebook toolbar or run
+**Tracepad: Set Up Model**. Choose a provider profile, enter or select the
+exact model, and provide a hosted key when prompted. VS Code stores model names
+in settings and keys in SecretStorage.
+
+For multiple shared profiles or generation parameters, optionally put the
+provider and exact model name in workspace `tracepad.yaml` without including
+an API key:
 
 ```yaml
 version: 1
@@ -58,11 +64,10 @@ profiles:
     model: your-exact-model-name
 ```
 
-Run **Tracepad: Select Model** to choose the profile, then
-**Tracepad: Configure Provider Credentials**. The user enters hosted-provider
-keys; VS Code stores them in SecretStorage. Keys are never written to YAML or
-notebook metadata. Ollama requires a running local server and installed model
-but no key. The active provider and model are visible in the status bar.
+Run **Tracepad: Select Model** to switch among profiles already configured in
+YAML or settings. Keys are never written to YAML, VS Code settings, or notebook
+metadata. Ollama requires a running local server and installed model but no
+key. The active provider and model are visible in the status bar.
 
 When VS Code was launched from the macOS Dock and does not inherit shell
 environment variables, SecretStorage remains reliable. Environment variables
@@ -123,7 +128,7 @@ Press `Option+T` on macOS or `Alt+T` on Windows/Linux, release it, then press:
 | `I` | Insert a prior result reference |
 | `L` | Show result lineage |
 | `A` | Rename the selected result alias |
-| `M` | Select the model profile |
+| `M` | Set up or change the model |
 
 Tracepad uses a dedicated chord family and does not override Jupyter's normal
 execution or editing keys. Commands still validate the selected prompt or

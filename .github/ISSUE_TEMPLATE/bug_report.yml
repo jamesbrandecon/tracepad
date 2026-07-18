@@ -1,0 +1,65 @@
+name: Tracepad bug report
+description: Report a reproducible problem in JupyterLab or VS Code
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: dropdown
+    id: host
+    attributes:
+      label: Notebook host
+      options:
+        - JupyterLab
+        - VS Code
+        - Both
+    validations:
+      required: true
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      description: Tracepad version, operating system, Python version, and VS Code or JupyterLab version.
+      placeholder: Tracepad 0.3.9; Windows 11; Python 3.12; VS Code 1.xx
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Use a small or synthetic notebook when possible. Never include API keys or private data.
+      placeholder: |
+        1. Opened ...
+        2. Selected ...
+        3. Ran ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected and actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Tracepad diagnostics
+      description: >-
+        In VS Code, run "Tracepad: Show Diagnostics" and paste the output. In
+        JupyterLab, include the Tracepad model status and relevant server log
+        lines. Remove local paths if desired. Tracepad diagnostics do not
+        include API key values.
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: artifacts
+    attributes:
+      label: Screenshots or minimal notebook
+      description: Attach a screenshot or minimal .ipynb after removing credentials and private data.
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety check
+      options:
+        - label: I confirmed this report contains no API keys, credentials, or private data.
+          required: true

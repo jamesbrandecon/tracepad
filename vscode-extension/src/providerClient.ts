@@ -29,7 +29,7 @@ export async function generateCode(
   const provider = registry.providers[profile.provider];
   let model = profile.model;
   if (!model && provider.driver === "ollama-chat") {
-    model = await discoverOllamaModel(provider);
+    model = (await discoverOllamaModels(provider))[0] ?? "";
   }
   if (!model) throw new Error(`Model profile ${profile.label} requires a model name.`);
   const apiKey = provider.apiKeyEnv ? registry.environment[provider.apiKeyEnv] ?? "" : "";
@@ -67,7 +67,7 @@ export async function generateCode(
     const response = await fetchJson(endpoint(provider, "api/chat"), {
       model,
       stream: false,
-      format: "json",
+      format: generationJsonSchema(),
       messages: [
         { role: "system", content: instructions },
         { role: "user", content: input }
@@ -78,12 +78,16 @@ export async function generateCode(
   }
 
   const parsed = parseGeneration(raw, profile);
-  if (!capturesRuntimeResult(parsed.code, runtimeName)) {
+  const boundCode = bindGeneratedResult(parsed.code, language, runtimeName);
+  if (!capturesRuntimeResult(boundCode, runtimeName)) {
     throw new Error(`${profile.label} did not bind the result to ${runtimeName}. Generate again or edit the code before running.`);
   }
   return {
     ...parsed,
-    code: prependReferenceBindings(parsed.code, language, references),
+    code: prependReferenceBindings(boundCode, language, references),
+    notes: boundCode === parsed.code
+      ? parsed.notes
+      : `${parsed.notes} Tracepad added the reusable result binding.`,
     profile: profile.id,
     provider: provider.id,
     model
@@ -96,15 +100,28 @@ export function systemInstructions(language: string, runtimeName: string): strin
     : `Assign the primary inspectable result to the exact runtime variable ${runtimeName}, then leave ${runtimeName} as the final expression.`;
   return [
     "Generate concise executable notebook code.",
-    "Return JSON only with string keys code and notes. Do not use markdown fences.",
+    "Return JSON only with string keys code and notes. The code value must be one string containing the entire program, never an array. Do not use markdown fences.",
     `Use the ${language} kernel language.`,
     "Available references include a user-facing alias and a stable runtimeName.",
     "Use the readable alias in executable code; Tracepad binds it to runtimeName without copying the object.",
     "Bind the actual reusable result object, not a dictionary or list containing previews, shapes, columns, dtypes, summaries, or diagnostics.",
     "For tabular requests, bind the full data frame or lazy table; Tracepad renders its own bounded preview and metadata.",
+    `The response is invalid unless the code literally creates ${runtimeName} according to the next instruction.`,
     resultContract,
     "Never include credentials."
   ].join(" ");
+}
+
+function generationJsonSchema(): Record<string, unknown> {
+  return {
+    type: "object",
+    properties: {
+      code: { type: "string" },
+      notes: { type: "string" }
+    },
+    required: ["code"],
+    additionalProperties: false
+  };
 }
 
 export function prependReferenceBindings(
@@ -153,13 +170,53 @@ export function capturesRuntimeResult(code: string, runtimeName: string): boolea
   return new RegExp(`\\b${escaped}\\b`).test(code);
 }
 
-async function discoverOllamaModel(provider: ProviderDefinition): Promise<string> {
-  const response = await fetch(provider.baseUrl + "/api/tags", { signal: AbortSignal.timeout(3000) });
+export function bindGeneratedResult(code: string, language: string, runtimeName: string): string {
+  const clean = code.trim();
+  if (!clean || capturesRuntimeResult(clean, runtimeName) || language.toLowerCase() === "sql") return clean;
+  const lines = clean.split("\n");
+  const assignment = language.toLowerCase() === "r" ? "<-" : "=";
+  const assignmentPattern = language.toLowerCase() === "r"
+    ? /^([A-Za-z_][A-Za-z0-9_.]*)\s*(?:<-|=(?!=))/
+    : /^([A-Za-z_][A-Za-z0-9_]*)\s*=(?!=)/;
+  const assignedName = [...lines].reverse()
+    .map(line => line.match(assignmentPattern)?.[1] ?? "")
+    .find(Boolean);
+  const lastLine = lines.at(-1)?.trim() ?? "";
+  const simpleExpression = /^[A-Za-z_][A-Za-z0-9_.]*$/.test(lastLine)
+    || /^\[[\s\S]*\]$/.test(lastLine)
+    || /^\{[\s\S]*\}$/.test(lastLine)
+    || /^\([\s\S]*\)$/.test(lastLine)
+    ? lastLine
+    : "";
+  const resultExpression = simpleExpression || assignedName;
+  if (!resultExpression) return clean;
+  return [
+    clean,
+    "",
+    "# Tracepad result binding",
+    `${runtimeName} ${assignment} ${resultExpression}`,
+    runtimeName
+  ].join("\n");
+}
+
+export async function discoverOllamaModels(
+  provider: ProviderDefinition,
+  signal?: AbortSignal
+): Promise<string[]> {
+  const response = await fetch(provider.baseUrl + "/api/tags", {
+    signal: signal
+      ? AbortSignal.any([signal, AbortSignal.timeout(3000)])
+      : AbortSignal.timeout(3000)
+  });
   if (!response.ok) throw new Error(`Ollama model discovery returned HTTP ${response.status}.`);
   const payload = await response.json() as any;
-  const model = payload.models?.find((item: any) => item?.name)?.name;
-  if (!model) throw new Error("Ollama is reachable but has no installed models.");
-  return String(model);
+  const models = [...new Set(
+    (payload.models ?? [])
+      .map((item: any) => String(item?.name ?? "").trim())
+      .filter(Boolean)
+  )] as string[];
+  if (!models.length) throw new Error("Ollama is reachable but has no installed models.");
+  return models;
 }
 
 async function fetchJson(

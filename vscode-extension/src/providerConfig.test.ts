@@ -73,6 +73,24 @@ profiles:
     expect(registry.providers.ollama.requiresApiKey).toBe(false);
   });
 
+  it("lets VS Code remember an exact model per profile", () => {
+    const paths = fixture();
+    const registry = loadProviderRegistry({
+      workspaceRoot: paths.workspace,
+      userConfigRoot: paths.user,
+      profileOverride: "openai",
+      modelOverrides: {
+        openai: "tester-model",
+        ollama: "qwen2.5-coder:0.5b"
+      },
+      environment: { OPENAI_API_KEY: "test-key" }
+    });
+    expect(registry.activeProfile).toBe("openai");
+    expect(registry.profiles.openai.model).toBe("tester-model");
+    expect(registry.profiles.ollama.model).toBe("qwen2.5-coder:0.5b");
+    expect(profileReady(registry.profiles.openai, registry.providers, registry.environment)).toBe(true);
+  });
+
   it("allows Ollama to discover an installed model at generation time", () => {
     const paths = fixture();
     const registry = loadProviderRegistry({

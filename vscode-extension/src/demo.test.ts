@@ -56,16 +56,17 @@ describe("VS Code demo notebook", () => {
       };
     };
     const keybindings = new Map(manifest.contributes.keybindings.map(item => [item.command, item]));
-    expect(manifest.version).toBe("0.3.8");
+    expect(manifest.version).toBe("0.3.9");
     expect((manifest as { icon?: string }).icon).toBe("media/tracepad-logo.png");
     expect(manifest.contributes.configuration.properties["tracepad.collapseGeneratedCode"]?.default).toBe(true);
+    expect(manifest.contributes.configuration.properties["tracepad.models"]?.default).toEqual({});
     expect(keybindings.get("tracepad.generate")).toMatchObject({ key: "alt+t g" });
     expect(keybindings.get("tracepad.generateAndRun")).toMatchObject({ key: "alt+t r" });
     expect(keybindings.get("tracepad.generateRunAndInsert")).toMatchObject({ key: "alt+t n" });
     expect(keybindings.get("tracepad.exploreResult")).toMatchObject({ key: "alt+t e" });
     expect(keybindings.get("tracepad.showLineage")).toMatchObject({ key: "alt+t l" });
     expect(keybindings.get("tracepad.insertReference")).toMatchObject({ key: "alt+t i" });
-    expect(keybindings.get("tracepad.selectProfile")).toMatchObject({ key: "alt+t m" });
+    expect(keybindings.get("tracepad.setupModel")).toMatchObject({ key: "alt+t m" });
     expect(keybindings.get("tracepad.renameResult")).toMatchObject({ key: "alt+t a" });
     expect(keybindings.get("tracepad.addTurn")).toMatchObject({ key: "alt+t p" });
     for (const binding of manifest.contributes.keybindings) {
@@ -74,5 +75,6 @@ describe("VS Code demo notebook", () => {
     }
     expect(manifest.contributes.commands.map(item => item.command)).toContain("tracepad.fixWithAI");
     expect(manifest.contributes.commands.map(item => item.command)).toContain("tracepad.showLineage");
+    expect(manifest.contributes.commands.map(item => item.command)).toContain("tracepad.setupModel");
   });
 });

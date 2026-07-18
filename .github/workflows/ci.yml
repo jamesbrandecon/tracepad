@@ -30,6 +30,8 @@ jobs:
       - run: pnpm --dir vscode-extension test
       - run: python scripts/install_vscode.py --build-only
       - run: pytest -q
+      - name: Validate issue templates
+        run: python -c "from pathlib import Path; import yaml; [yaml.safe_load(path.read_text(encoding='utf-8')) for path in Path('.github/ISSUE_TEMPLATE').glob('*.yml')]"
       - name: Smoke-test Unix installer
         if: runner.os != 'Windows'
         run: TRACEPAD_VENV=.tracepad-smoke ./scripts/install.sh --minimal
