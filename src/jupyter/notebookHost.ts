@@ -11,6 +11,7 @@ import type {
   GenerationResponse,
   InspectCapability,
   InspectResult,
+  NotebookCodeCellContext,
   ProviderConfiguration,
   ProviderStatusResponse,
   TracepadLanguage,
@@ -65,6 +66,28 @@ export class JupyterNotebookHost implements TracepadNotebookHost {
       names.add(match[1]);
     }
     return Array.from(names).slice(0, 60);
+  }
+
+  notebookCode(excludeTurnId?: string): NotebookCodeCellContext[] {
+    return Array.from(this.panel.content.model?.cells ?? []).flatMap((cell, index) => {
+      if (cell.type !== "code") return [];
+      const source = cell.sharedModel.getSource().trim();
+      const metadata = cell.getMetadata(TRACEPAD_METADATA_KEY) as Record<string, unknown> | undefined;
+      if (!source || (excludeTurnId && metadata?.turnId === excludeTurnId)) return [];
+      const executionOrder = (cell as ICodeCellModel).executionCount;
+      return [{
+        cell_index: index + 1,
+        language: this.language,
+        source,
+        ...(typeof executionOrder === "number" ? { execution_order: executionOrder } : {}),
+        ...(metadata ? {
+          tracepad: {
+            ...(typeof metadata.turnId === "string" ? { turn_id: metadata.turnId } : {}),
+            ...(typeof metadata.objectAlias === "string" ? { result_alias: metadata.objectAlias } : {})
+          }
+        } : {})
+      }];
+    });
   }
 
   ensureTurn(turn: TracepadTurn): void {

@@ -174,6 +174,15 @@ export function runtimeNameFor(turnNumber: string): string {
   return `tracepad_result_${turnNumber.replace(/\./g, "_")}`;
 }
 
+export function resultAliasFor(
+  prompt: TracepadCellMetadata,
+  existingAlias?: string
+): string {
+  return existingAlias
+    ?? prompt.alias
+    ?? `result_${prompt.turnNumber.replace(/\./g, "_")}`;
+}
+
 export function formatPromptMarkdown(
   prompt: string,
   _turnNumber: string,

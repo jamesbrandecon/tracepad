@@ -1,66 +1,78 @@
+import csv
 from pathlib import Path
 
 import nbformat
-from nbclient import NotebookClient
+import pytest
 
 
-TRACEPAD_RESULT_MIME = "application/vnd.tracepad.result+json"
+ROOT = Path(__file__).parents[1]
 
 
-def _tracepad_code_cells(notebook):
-    return [
-        cell
-        for cell in notebook.cells
-        if cell.cell_type == "code" and "tracepad" in cell.metadata
-    ]
+@pytest.mark.parametrize(
+    "relative_path",
+    [
+        "tracepad_demo.ipynb",
+        "demo/tracepad_demo_clean.ipynb",
+        "vscode-extension/demo/tracepad-vscode-demo.ipynb",
+    ],
+)
+def test_demo_notebooks_contain_no_code_or_saved_outputs(relative_path):
+    notebook = nbformat.read(ROOT / relative_path, as_version=4)
+
+    assert all(cell.cell_type != "code" for cell in notebook.cells)
+    assert all(not getattr(cell, "outputs", []) for cell in notebook.cells)
 
 
-def test_vscode_demo_cells_execute_against_repository_fixture(monkeypatch):
-    root = Path(__file__).parents[1]
+def test_jupyterlab_demo_contains_draft_prompt_sequence():
+    notebook = nbformat.read(ROOT / "tracepad_demo.ipynb", as_version=4)
+    turns = notebook.metadata.tracepad.turns
+
+    assert len(turns) == 5
+    assert all(turn.code == "" and turn.status == "draft" for turn in turns)
+    assert [turn.prompt for turn in turns][1].startswith("Using @orders")
+    assert set(notebook.metadata.tracepad.objects) == {
+        "obj-demo-orders",
+        "obj-demo-monthly",
+        "obj-demo-plot",
+        "obj-demo-model",
+        "obj-demo-predict",
+    }
+
+
+def test_vscode_demo_contains_prompt_only_reference_flow():
     notebook = nbformat.read(
-        root / "vscode-extension" / "demo" / "tracepad-vscode-demo.ipynb",
+        ROOT / "vscode-extension" / "demo" / "tracepad-vscode-demo.ipynb",
         as_version=4,
     )
-    monkeypatch.chdir(root / "vscode-extension" / "demo")
 
-    namespace = {"__name__": "__tracepad_demo_test__"}
-    for cell in _tracepad_code_cells(notebook):
-        exec(compile(cell.source, f"tracepad-turn-{cell.metadata.tracepad.turnNumber}", "exec"), namespace)
+    assert [cell.metadata.tracepad.alias for cell in notebook.cells] == [
+        "orders",
+        "monthly_revenue",
+        "revenue_chart",
+    ]
+    assert all(cell.source.startswith("%%ai\n") for cell in notebook.cells)
+    assert "@orders" in notebook.cells[1].source
+    assert "@monthly_revenue" in notebook.cells[2].source
 
-    assert len(namespace["tracepad_result_1"]) == 3000
-    assert list(namespace["tracepad_result_2"].columns) == [
-        "order_month",
+
+def test_demo_csv_remains_a_small_reproducible_fixture():
+    with (ROOT / "demo" / "data" / "retail_orders.csv").open(
+        encoding="utf-8", newline=""
+    ) as handle:
+        rows = list(csv.DictReader(handle))
+
+    assert len(rows) == 3000
+    assert set(rows[0]) == {
+        "order_id",
+        "order_date",
+        "customer_id",
+        "region",
         "channel",
-        "net_revenue",
-        "order_count",
-    ]
-    assert namespace["tracepad_result_2_1"] is namespace["fig"]
-
-
-def test_vscode_demo_emits_tracepad_result_mime():
-    root = Path(__file__).parents[1]
-    notebook_path = root / "vscode-extension" / "demo" / "tracepad-vscode-demo.ipynb"
-    notebook = nbformat.read(notebook_path, as_version=4)
-    NotebookClient(
-        notebook,
-        timeout=120,
-        kernel_name="python3",
-        resources={"metadata": {"path": str(notebook_path.parent)}},
-    ).execute()
-
-    payloads = []
-    for cell in _tracepad_code_cells(notebook):
-        rich_outputs = [
-            output["data"][TRACEPAD_RESULT_MIME]
-            for output in cell.outputs
-            if output.output_type in {"display_data", "execute_result"}
-            and TRACEPAD_RESULT_MIME in output.get("data", {})
-        ]
-        assert len(rich_outputs) == 1
-        payloads.extend(rich_outputs)
-
-    assert [(payload["kind"], payload["alias"]) for payload in payloads] == [
-        ("data", "orders"),
-        ("data", "monthly_revenue"),
-        ("plot", "revenue_chart"),
-    ]
+        "category",
+        "unit_price",
+        "quantity",
+        "discount",
+        "revenue",
+        "returned",
+        "delivery_days",
+    }

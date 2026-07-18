@@ -15,6 +15,7 @@ DEMO_DIR = ROOT / "demo"
 DATA_PATH = DEMO_DIR / "data" / "retail_orders.csv"
 GUIDED_PATH = ROOT / "tracepad_demo.ipynb"
 CLEAN_PATH = DEMO_DIR / "tracepad_demo_clean.ipynb"
+VSCODE_PATH = ROOT / "vscode-extension" / "demo" / "tracepad-vscode-demo.ipynb"
 STAMP = "2026-07-09T20:00:00.000Z"
 
 
@@ -106,15 +107,6 @@ def guided_notebook() -> dict[str, object]:
             "parent": None,
             "inputs": [],
             "prompt": "Load demo/data/retail_orders.csv, inspect its structure, and return the resulting table as orders.",
-            "code": """
-from pathlib import Path
-import pandas as pd
-
-orders = pd.read_csv(Path("demo/data/retail_orders.csv"), parse_dates=["order_date"])
-print(f"{len(orders):,} rows x {len(orders.columns)} columns")
-print(orders.isna().sum().loc[lambda values: values > 0])
-orders
-""",
         },
         {
             "turn": "turn-demo-monthly",
@@ -124,15 +116,6 @@ orders
             "parent": "obj-demo-orders",
             "inputs": ["obj-demo-orders"],
             "prompt": "Using @orders, calculate monthly revenue, order count, and average order value by channel.",
-            "code": """
-monthly_revenue = (
-    orders.assign(month=orders["order_date"].dt.to_period("M").dt.to_timestamp())
-    .groupby(["month", "channel"], as_index=False)
-    .agg(revenue=("revenue", "sum"), order_count=("order_id", "count"))
-)
-monthly_revenue["average_order_value"] = monthly_revenue["revenue"] / monthly_revenue["order_count"]
-monthly_revenue
-""",
         },
         {
             "turn": "turn-demo-plot",
@@ -142,19 +125,6 @@ monthly_revenue
             "parent": "obj-demo-monthly",
             "inputs": ["obj-demo-monthly"],
             "prompt": "Using @monthly_revenue, plot monthly revenue by channel with a clear title and labeled axes.",
-            "code": """
-import matplotlib.pyplot as plt
-
-fig, ax = plt.subplots(figsize=(9, 4.8))
-for channel, values in monthly_revenue.groupby("channel"):
-    ax.plot(values["month"], values["revenue"], marker="o", linewidth=2, label=channel)
-ax.set(title="Monthly retail revenue by channel", xlabel="Month", ylabel="Revenue")
-ax.legend(title="Channel", frameon=False)
-ax.grid(axis="y", alpha=0.2)
-fig.autofmt_xdate()
-fig.tight_layout()
-fig
-""",
         },
         {
             "turn": "turn-demo-model",
@@ -164,15 +134,6 @@ fig
             "parent": "obj-demo-orders",
             "inputs": ["obj-demo-orders"],
             "prompt": "Using @orders, fit a logistic model predicting whether an order is returned from discount, unit price, delivery time, channel, and category. Return the fitted model.",
-            "code": """
-import statsmodels.formula.api as smf
-
-return_model = smf.logit(
-    "returned ~ discount + unit_price + delivery_days + C(channel) + C(category)",
-    data=orders,
-).fit(disp=False)
-return_model
-""",
         },
         {
             "turn": "turn-demo-predict",
@@ -182,14 +143,6 @@ return_model
             "parent": "obj-demo-model",
             "inputs": ["obj-demo-model", "obj-demo-orders"],
             "prompt": "Using @return_model and @orders, score a representative sample and return the orders with their predicted return probabilities.",
-            "code": """
-return_predictions = orders.sample(20, random_state=12).copy()
-return_predictions["predicted_return_probability"] = return_model.predict(return_predictions)
-return_predictions = return_predictions[
-    ["order_id", "channel", "category", "discount", "delivery_days", "returned", "predicted_return_probability"]
-].sort_values("predicted_return_probability", ascending=False)
-return_predictions
-""",
         },
     ]
 
@@ -204,7 +157,7 @@ return_predictions
                 """
 # Tracepad guided demo
 
-Run the saved analysis turns from top to bottom. Each result becomes a named, inspectable object that the next turn can reference.
+Generate and run the prompts from top to bottom. Each result becomes a named, inspectable object that the next prompt can reference.
 """
             ),
         }
@@ -213,10 +166,9 @@ Run the saved analysis turns from top to bottom. Each result becomes a named, in
         turn = {
             "id": item["turn"],
             "prompt": item["prompt"],
-            "code": item["code"].strip(),
+            "code": "",
             "language": "python",
-            "status": "ready",
-            "generationNote": "Guided V1 example; generated code is editable before execution.",
+            "status": "draft",
             "outputs": [],
             "outputObjectId": item["object"],
             "inputObjectIds": item["inputs"],
@@ -229,27 +181,6 @@ Run the saved analysis turns from top to bottom. Each result becomes a named, in
         objects[item["object"]] = placeholder_object(
             str(item["object"]), str(item["turn"]), str(item["alias"]), str(item["kind"])
         )
-        cells.append(
-            {
-                "cell_type": "code",
-                "id": str(item["turn"]),
-                "execution_count": None,
-                "metadata": {
-                    "tracepad": {
-                        "turnId": item["turn"],
-                        "prompt": item["prompt"],
-                        "language": "python",
-                        "parentObjectId": item["parent"],
-                        "inputObjectIds": item["inputs"],
-                        "objectId": item["object"],
-                        "objectAlias": item["alias"],
-                    }
-                },
-                "outputs": [],
-                "source": source_lines(str(item["code"])),
-            }
-        )
-
     state = {
         "version": 1,
         "turns": turns,
@@ -257,6 +188,66 @@ Run the saved analysis turns from top to bottom. Each result becomes a named, in
         "activeTurnId": turns[0]["id"],
     }
     return {"cells": cells, "metadata": notebook_metadata(state), "nbformat": 4, "nbformat_minor": 5}
+
+
+def vscode_notebook() -> dict[str, object]:
+    prompts = [
+        {
+            "turn_id": "demo-turn-1",
+            "turn_number": "1",
+            "alias": "orders",
+            "prompt": "Load data/retail_orders.csv, parse order_date, and return the resulting table as orders.",
+        },
+        {
+            "turn_id": "demo-turn-2",
+            "turn_number": "2",
+            "alias": "monthly_revenue",
+            "prompt": "Using @orders, summarize monthly net revenue and order count by channel.",
+        },
+        {
+            "turn_id": "demo-turn-2-1",
+            "turn_number": "2.1",
+            "alias": "revenue_chart",
+            "parent_turn_id": "demo-turn-2",
+            "parent_alias": "monthly_revenue",
+            "prompt": "Using @monthly_revenue, plot net revenue over time with one line per channel.",
+        },
+    ]
+    cells = []
+    for item in prompts:
+        tracepad = {
+            "version": 1,
+            "role": "prompt",
+            "turnId": item["turn_id"],
+            "turnNumber": item["turn_number"],
+            "alias": item["alias"],
+        }
+        if item.get("parent_turn_id"):
+            tracepad.update(
+                parentTurnId=item["parent_turn_id"],
+                parentAlias=item["parent_alias"],
+            )
+        cells.append(
+            {
+                "cell_type": "markdown",
+                "id": str(item["turn_id"]),
+                "metadata": {"tracepad": tracepad},
+                "source": source_lines(f"%%ai\n{item['prompt']}"),
+            }
+        )
+    return {
+        "cells": cells,
+        "metadata": {
+            "kernelspec": {
+                "display_name": "Tracepad (.venv)",
+                "language": "python",
+                "name": "tracepad",
+            },
+            "language_info": {"name": "python", "version": "3.11"},
+        },
+        "nbformat": 4,
+        "nbformat_minor": 5,
+    }
 
 
 def clean_notebook() -> dict[str, object]:
@@ -303,9 +294,11 @@ def main() -> None:
         writer.writerows(rows)
     write_json(GUIDED_PATH, guided_notebook())
     write_json(CLEAN_PATH, clean_notebook())
+    write_json(VSCODE_PATH, vscode_notebook())
     print(f"Wrote {len(rows):,} rows to {DATA_PATH.relative_to(ROOT)}")
     print(f"Wrote {GUIDED_PATH.relative_to(ROOT)}")
     print(f"Wrote {CLEAN_PATH.relative_to(ROOT)}")
+    print(f"Wrote {VSCODE_PATH.relative_to(ROOT)}")
 
 
 if __name__ == "__main__":

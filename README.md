@@ -2,34 +2,46 @@
   <img src="docs/images/tracepad-logo.png" alt="Tracepad" width="144" />
 </p>
 
+> **Alpha software:** Tracepad is an early experiment with substantially
+> LLM-generated code. Review generated code and use it at your own risk.
+
 # Tracepad
+Tracepad is my LLM-assisted attempt to improve the AI flow in `.ipynb`
+notebooks. It addresses two problems with current AI workflows:
 
-Tracepad adds an AI-first analysis flow to standard `.ipynb` notebooks:
-plain-English request -> editable generated code -> native kernel output ->
-inspection and follow-up. Result names such as `@orders` make dependencies
-explicit and let Tracepad preserve lineage across the notebook.
+1. **Untracked user intent:** After a request is made to an LLM (for example,
+   inline or in a chat sidebar) and code is generated, the original request is
+   often lost.
 
-> **Private pre-release.** Tracepad is installed from this repository. It is
-> not published to PyPI or the VS Code Marketplace, and its interfaces may
-> still change.
+2. **Code bloat:** LLMs quickly add long sequences of code that are difficult
+   to review. This is exacerbated by the loss of user intent across multiple
+   turns.
+
+Tracepad adds dedicated AI prompt cells and named outputs that preserve the
+analysis path through a notebook. The resulting flow is:
+
+`natural language request -> editable generated code -> native kernel output -> follow-up by name`
 
 ## Notebook hosts
+Tracepad implements this workflow in two common notebook interfaces:
 
 | Host | Experience |
 | --- | --- |
 | JupyterLab | Full-page Tracepad notebook with inline inspection and lineage |
 | VS Code | Native Markdown prompts, code cells, outputs, and Tracepad command chords |
 
-Both hosts edit ordinary `.ipynb` files and use the notebook's real kernel.
-Generated code remains visible to other notebook editors even when Tracepad is
-not installed.
+Both hosts edit ordinary `.ipynb` files and use the notebook's kernel. Generated
+code therefore remains visible in other notebook editors even when Tracepad is
+not installed. After submission, prompt cells become ordinary Markdown. The
+JupyterLab interface below shows a prompt, generated code, named results, and
+the evolving inspection pane.
 
 ![Tracepad running an analysis and inspecting the resulting data frame](docs/images/tracepad-guided-notebook.png)
 
 Tracepad currently provides its richest inspection for Python tables, plots,
-and model-like objects. It can detect common methods such as `summary`,
-coefficients, fitted values, prediction, and plotting. R, Julia, and SQL retain
-their native notebook outputs while sharing the prompt and lineage workflow.
+and model-like objects. It detects common methods such as `summary`,
+coefficients, fitted values, prediction, and plotting, then uses them for basic
+summaries in the inspection pane.
 
 ## Before installing
 
@@ -44,47 +56,30 @@ Choose one notebook host and one model provider before starting:
 | --- | --- |
 | JupyterLab | You want Tracepad's full-page notebook, inspector, and lineage UI |
 | VS Code | You want native VS Code Markdown, code cells, outputs, and commands |
-| Ollama | A local Ollama server and model are already installed |
-| OpenAI | You have an OpenAI API key and exact model name |
-| OpenRouter | You have an OpenRouter key and exact provider/model id |
 
-Tracepad never selects a default model. Both hosts provide an in-product setup
-flow for choosing an exact model. An installation agent can clone, build,
-launch, and verify Tracepad, but it should not request, echo, or write an API
-key. The user enters hosted-provider credentials through Tracepad's model
+Model providers include OpenAI, OpenRouter, and local Ollama models. Both hosts provide an in-product setup
+flow for choosing a model. Users can enter hosted-provider credentials through Tracepad's model
 dialog or VS Code SecretStorage.
 
-### Authenticate to the private repository
-
-The most reliable agent-friendly path uses the GitHub CLI:
+### Clone the repository
 
 ```bash
-gh auth status
-gh repo clone jamesbrandecon/tracepad
-cd tracepad
-```
-
-SSH is also supported after `ssh -T git@github.com` succeeds:
-
-```bash
-git clone git@github.com:jamesbrandecon/tracepad.git
+git clone https://github.com/jamesbrandecon/tracepad.git
 cd tracepad
 ```
 
 ## Install for JupyterLab
 
-Prerequisites: authenticated repository access, Git, and Python 3.9 or newer.
-Node and pnpm are not required because the prebuilt JupyterLab extension is
-committed to the repository.
+Prerequisites: Git and Python 3.9 or newer.
 
-macOS or Linux:
+**macOS or Linux:**
 
 ```bash
 ./scripts/install.sh
 ./scripts/demo.sh
 ```
 
-Windows PowerShell:
+**Windows PowerShell:**
 
 ```powershell
 .\scripts\install.ps1
@@ -95,6 +90,9 @@ If local PowerShell policy blocks repository scripts, first run
 `Set-ExecutionPolicy -Scope Process Bypass`. Both installers create `.venv`
 and install Tracepad plus the demo dependencies. Both demo commands open
 `tracepad_demo.ipynb` in JupyterLab.
+
+The bundled demos contain prompts only. Generate and run them from top to
+bottom to create the code, outputs, named results, and lineage yourself.
 
 Verify the installation without starting another server:
 
@@ -110,8 +108,8 @@ the same document back to the conventional editor.
 
 ## Install for VS Code
 
-Prerequisites: authenticated repository access, Git, VS Code 1.95 or newer,
-Node.js 22, Corepack, and a working Python/Jupyter kernel. Run these checks
+Prerequisites: Git, VS Code 1.95 or newer, Node.js 22, Corepack, and a working
+Python/Jupyter kernel. Run these checks
 before building:
 
 ```bash
@@ -120,7 +118,7 @@ node --version
 corepack --version
 ```
 
-Build and install the private VSIX without using the VS Code GUI.
+Build and install the VSIX without using the VS Code GUI.
 
 macOS or Linux:
 
@@ -140,8 +138,10 @@ demo dependencies, and registers a project-local kernel. Reload VS Code, open
 an `.ipynb`, and select
 **Tracepad (.venv)** from the kernel picker. If VS Code lists only interpreter
 paths, choose the one ending in `.venv/bin/python` on macOS/Linux or
-`.venv\Scripts\python.exe` on Windows. Avoid an unrelated system or Conda
-kernel. Choose **Model** once to select a provider, exact model, and any required
+`.venv\Scripts\python.exe` on Windows.
+
+## Usage
+Choose **Model** once to select a provider, exact model, and any required
 credential. Then choose **AI Prompt** or begin a Markdown cell with `%%ai`.
 
 With a Tracepad prompt selected, **Generate with Tracepad** runs the same action
@@ -243,6 +243,72 @@ Environment variables remain supported for automated or headless setups:
 `OLLAMA_HOST`. A VS Code window launched from the macOS Dock may not inherit
 shell variables, so VS Code settings or YAML plus SecretStorage is the
 preferred desktop setup.
+
+## What Tracepad sends to the AI
+
+Tracepad sends a system instruction, the user's English request, the current
+kernel language, source from the notebook's other code cells, and the
+host-specific tracking context described below. Cell outputs are not included.
+The response must be JSON with a complete `code` string and optional `notes`;
+Tracepad then places the code in an editable notebook cell.
+
+The JupyterLab request has this shape:
+
+```text
+System: Generate concise, executable notebook code. Return JSON containing
+code and notes, use the supplied kernel language, use supplied notebook
+variables and references, and leave the most useful table, plot, or fitted
+model as the final expression. Do not embed, print, or request secrets.
+
+Kernel language: <language>
+User request: <English request>
+Notebook context: <context JSON>
+```
+
+JupyterLab context contains source from every other non-empty code cell, the
+names of notebook variables, metadata for explicitly referenced results, and
+parent-result metadata when creating a follow-up. Reference metadata includes
+the result name, type, language, classes, capabilities, and column names. It
+does not include result rows, previews, summaries, or cell outputs.
+
+The native VS Code request uses a stricter result-binding contract:
+
+```text
+System: Generate concise executable code in <kernel language>, return JSON
+containing code and notes, and bind the primary reusable result to
+<stable runtime name>. Do not embed, print, or request secrets.
+
+User request: <English request>
+Notebook code (source only; cell outputs are excluded): <code-cell JSON>
+Available Tracepad references: <reference JSON>
+```
+
+VS Code also sends source from every other non-empty code cell. It separately
+identifies prior results explicitly named in the request, plus a parent result
+for a follow-up. Each selected reference includes its display name, stable
+runtime name, turn number, and up to 4,000 characters of the source code that
+created it. Saved outputs, table rows, and table previews are not included.
+
+Both system prompts include Tracepad's backend and tracking contract: how
+friendly `@name` references map to stable runtime objects, which object must be
+left available for reuse, and how to preserve inspectable tables, plots, and
+models. Tracepad itself adds display, registration, and lineage handling after
+generation, so the model only needs the result-binding and reference contract.
+
+**Fix with AI** additionally sends the original request, current generated
+code, and the kernel error. API keys are transport credentials and are not
+placed in the prompt, notebook, or YAML. Tracepad sets `store: false` on
+OpenAI-compatible hosted request payloads and applies best-effort redaction for
+common keys, tokens, passwords, credential URLs, and private keys found in
+prompts or notebook source. Redaction is not a security boundary: code and
+prompts can still contain sensitive literals, paths, comments, or data, so
+review them before using a hosted provider. Ollama requests remain on the
+configured Ollama endpoint; OpenAI and OpenRouter requests are sent to those
+hosted services, whose retention policies still apply.
+
+The exact prompt builders are maintained in
+[`src/tracepad/server.py`](src/tracepad/server.py) and
+[`vscode-extension/src/providerClient.ts`](vscode-extension/src/providerClient.ts).
 
 ## Installation success criteria
 

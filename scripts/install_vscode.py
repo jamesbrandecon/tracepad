@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build and optionally install the private Tracepad VS Code extension."""
+"""Build and optionally install the Tracepad VS Code extension."""
 
 from __future__ import annotations
 

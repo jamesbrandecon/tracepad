@@ -42,6 +42,26 @@ def test_generation_parser_rejects_empty_code():
         server._parse_generation('{"code":""}', "Test")
 
 
+def test_generation_context_redacts_common_secrets():
+    context = {
+        "notebook_code": [
+            {
+                "cell_index": 1,
+                "source": 'api_key = "sk-proj-abcdefghijklmnop"\norders = load_orders()',
+            }
+        ]
+    }
+
+    value = server._generation_input("Summarize orders", "python", context)
+
+    assert "orders = load_orders()" in value
+    assert "[REDACTED]" in value
+    assert "sk-proj-abcdefghijklmnop" not in value
+    assert server._redact_sensitive_text("api_key = sk-proj-abcdefghijklmnop") == (
+        "api_key = [REDACTED]"
+    )
+
+
 def test_ollama_is_detected_but_requires_selection(monkeypatch):
     monkeypatch.setattr(server, "_ollama_models", lambda _url: (["qwen2.5-coder:7b", "llama3.2:3b"], None))
     status = server._provider_status()
@@ -188,6 +208,60 @@ def test_model_prompt_preserves_inspectable_final_object_contract():
     assert "final expression" in instructions
     assert "summary, coefficients, fitted values, predict" in instructions
     assert "code value must be one string" in instructions
+    assert "environment variables or established credential providers" in instructions
+
+
+def test_openai_generation_disables_storage(monkeypatch):
+    captured = {}
+
+    def fake_request(url, **kwargs):
+        captured.update(kwargs["payload"])
+        return {
+            "output": [
+                {"content": [{"text": '{"code":"answer = 42\\nanswer","notes":"Ready"}'}]}
+            ]
+        }
+
+    monkeypatch.setattr(server, "_json_request", fake_request)
+    result = server._openai_generation(
+        "Answer",
+        "python",
+        {"notebook_code": []},
+        "test-model",
+        parameters={"store": True},
+    )
+
+    assert result["code"] == "answer = 42\nanswer"
+    assert captured["store"] is False
+
+
+def test_chat_generation_disables_storage(monkeypatch):
+    captured = {}
+
+    def fake_request(url, **kwargs):
+        captured.update(kwargs["payload"])
+        return {
+            "choices": [
+                {"message": {"content": '{"code":"answer = 42\\nanswer","notes":"Ready"}'}}
+            ]
+        }
+
+    monkeypatch.setattr(server, "_json_request", fake_request)
+    result = server._chat_generation(
+        "Answer",
+        "python",
+        {"notebook_code": []},
+        "test-model",
+        provider={
+            "label": "Test",
+            "base_url": "https://models.example/v1",
+            "headers": {},
+        },
+        parameters={"store": True},
+    )
+
+    assert result["code"] == "answer = 42\nanswer"
+    assert captured["store"] is False
 
 
 def test_ollama_generation_requests_a_string_code_schema(monkeypatch):

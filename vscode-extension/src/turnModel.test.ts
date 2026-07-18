@@ -12,6 +12,7 @@ import {
   newPromptSource,
   nextTurnNumber,
   referencedTokens,
+  resultAliasFor,
   runtimeNameFor,
   selectGenerationReferences,
   tracepadMetadata,
@@ -105,6 +106,19 @@ describe("Tracepad turn model", () => {
   it("normalizes display aliases without changing runtime naming", () => {
     expect(cleanAlias(" 2026 revenue / region ")).toBe("revenue_region");
     expect(runtimeNameFor("4.2")).toBe("tracepad_result_4_2");
+  });
+
+  it("retains seeded demo aliases when generation creates the code cell", () => {
+    const promptMetadata: TracepadCellMetadata = {
+      version: 1,
+      role: "prompt",
+      turnId: "turn-1",
+      turnNumber: "1",
+      alias: "orders"
+    };
+    expect(resultAliasFor(promptMetadata)).toBe("orders");
+    expect(resultAliasFor(promptMetadata, "renamed_orders")).toBe("renamed_orders");
+    expect(resultAliasFor({ ...promptMetadata, alias: undefined })).toBe("result_1");
   });
 
   it("adopts %%ai markdown without preserving extension syntax in the notebook", () => {

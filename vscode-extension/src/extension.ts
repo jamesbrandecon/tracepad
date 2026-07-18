@@ -2,7 +2,11 @@ import { randomUUID } from "node:crypto";
 import { dirname } from "node:path";
 import * as vscode from "vscode";
 import { followUpChoices } from "./followUpChoices";
-import { discoverOllamaModels, generateCode } from "./providerClient";
+import {
+  discoverOllamaModels,
+  generateCode,
+  type NotebookCodeCell
+} from "./providerClient";
 import {
   discoverConfigurationRoot,
   loadProviderRegistry,
@@ -27,6 +31,7 @@ import {
   newPromptSource,
   nextTurnNumber,
   referencedTokens,
+  resultAliasFor,
   runtimeNameFor,
   selectGenerationReferences,
   tracepadMetadata,
@@ -716,6 +721,7 @@ async function generatePromptCell(
       findTurnCell(promptCell.notebook, reference.turnId, "code")?.document.getText() ?? ""
     ).slice(0, 4000)
   }));
+  const notebookCode = collectNotebookCode(promptCell.notebook, codeCell);
 
   let cancellationRequested = false;
   try {
@@ -734,7 +740,14 @@ async function generatePromptCell(
       const generationPrompt = options.repairError
         ? repairPrompt(prompt, stripResultBridge(codeCell?.document.getText() ?? ""), options.repairError)
         : prompt;
-      return generateCode(registry, generationPrompt, language, runtimeName, references, controller.signal);
+      return generateCode(
+        registry,
+        generationPrompt,
+        language,
+        runtimeName,
+        { references, notebookCode },
+        controller.signal
+      );
     });
     if (cancellationRequested) return undefined;
     if (!findTurnCell(promptCell.notebook, metadata.turnId, "prompt")) {
@@ -750,7 +763,7 @@ async function generatePromptCell(
       generatedAt: new Date().toISOString(),
       ...(options.repairError ? { repairedAt: new Date().toISOString() } : {})
     };
-    const alias = existingCodeMetadata?.alias ?? `result_${metadata.turnNumber.replace(/\./g, "_")}`;
+    const alias = resultAliasFor(metadata, existingCodeMetadata?.alias);
     const presentedSource = appendResultBridge(result.code, language, {
       alias,
       runtimeName
@@ -835,6 +848,29 @@ function repairPrompt(prompt: string, source: string, error: string): string {
     `Kernel error:\n${error}`,
     "Return corrected executable code only through the required JSON contract."
   ].join("\n\n");
+}
+
+function collectNotebookCode(
+  notebook: vscode.NotebookDocument,
+  excludedCell?: vscode.NotebookCell
+): NotebookCodeCell[] {
+  return notebook.getCells().flatMap(cell => {
+    if (cell.kind !== vscode.NotebookCellKind.Code || cell === excludedCell) return [];
+    const source = stripResultBridge(cell.document.getText()).trim();
+    if (!source) return [];
+    const metadata = tracepadMetadata(cell.metadata);
+    return [{
+      cellNumber: cell.index + 1,
+      language: cell.document.languageId,
+      source,
+      ...(cell.executionSummary?.executionOrder === undefined
+        ? {}
+        : { executionOrder: cell.executionSummary.executionOrder }),
+      ...(metadata?.role === "code" && metadata.alias && metadata.runtimeName
+        ? { tracepadResult: { alias: metadata.alias, runtimeName: metadata.runtimeName } }
+        : {})
+    }];
+  });
 }
 
 async function ensureReferencesReady(codeCell: vscode.NotebookCell): Promise<boolean> {

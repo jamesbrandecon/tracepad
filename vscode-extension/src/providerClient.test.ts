@@ -5,6 +5,7 @@ import {
   discoverOllamaModels,
   generateCode,
   prependReferenceBindings,
+  redactSensitiveText,
   systemInstructions
 } from "./providerClient";
 
@@ -46,6 +47,16 @@ describe("Tracepad generation contract", () => {
     expect(instructions).toContain("actual reusable result object");
     expect(instructions).toContain("full data frame or lazy table");
     expect(instructions).toContain("not a dictionary or list containing previews");
+    expect(instructions).toContain("environment variables or established credential providers");
+  });
+
+  it("redacts common secrets without removing ordinary notebook code", () => {
+    const source = 'api_key = "sk-proj-abcdefghijklmnop"\norders = load_orders()';
+    expect(redactSensitiveText(source)).toBe(
+      'api_key = "[REDACTED]"\norders = load_orders()'
+    );
+    expect(redactSensitiveText("api_key = sk-proj-abcdefghijklmnop"))
+      .toBe("api_key = [REDACTED]");
   });
 
   it("binds friendly reference names without copying their objects", () => {
@@ -115,9 +126,69 @@ describe("Tracepad generation contract", () => {
           parameters: {}
         }
       }
-    }, "Create a list.", "python", "tracepad_result_1", []);
+    }, "Create a list.", "python", "tracepad_result_1", {
+      references: [],
+      notebookCode: []
+    });
     const body = JSON.parse(String((fetchMock.mock.calls[0]?.[1] as RequestInit)?.body));
     expect(body.format.properties.code.type).toBe("string");
     expect(body.format.required).toContain("code");
+  });
+
+  it("sends code-only notebook context with stateless hosted requests", async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({
+      output: [{ content: [{ text: JSON.stringify({
+        code: "tracepad_result_2 = orders.describe()\ntracepad_result_2",
+        notes: "Ready"
+      }) }] }]
+    }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    await generateCode({
+      activeProfile: "openai",
+      loadedFiles: [],
+      environment: { OPENAI_API_KEY: "transport-secret" },
+      providers: {
+        openai: {
+          id: "openai",
+          label: "OpenAI",
+          driver: "openai-responses",
+          baseUrl: "https://api.openai.test/v1",
+          apiKeyEnv: "OPENAI_API_KEY",
+          requiresApiKey: true,
+          headers: {}
+        }
+      },
+      profiles: {
+        openai: {
+          id: "openai",
+          label: "OpenAI",
+          provider: "openai",
+          model: "test-model",
+          parameters: { store: true }
+        }
+      }
+    }, "Summarize @orders.", "python", "tracepad_result_2", {
+      references: [{
+        token: "@orders",
+        alias: "orders",
+        runtimeName: "tracepad_result_1",
+        turnNumber: "1",
+        source: 'api_key = "sk-proj-abcdefghijklmnop"\norders = load_orders()'
+      }],
+      notebookCode: [{
+        cellNumber: 1,
+        language: "python",
+        source: 'api_key = "sk-proj-abcdefghijklmnop"\norders = load_orders()',
+        executionOrder: 1
+      }]
+    });
+
+    const body = JSON.parse(String((fetchMock.mock.calls[0]?.[1] as RequestInit)?.body));
+    expect(body.store).toBe(false);
+    expect(body.input).toContain("Notebook code (source only; cell outputs are excluded)");
+    expect(body.input).toContain("orders = load_orders()");
+    expect(body.input).toContain("[REDACTED]");
+    expect(body.input).not.toContain("sk-proj-abcdefghijklmnop");
+    expect(body.input).not.toContain("transport-secret");
   });
 });

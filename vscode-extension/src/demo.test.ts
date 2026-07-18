@@ -19,28 +19,24 @@ interface NotebookCell {
 }
 
 describe("VS Code demo notebook", () => {
-  it("contains portable prompt/code pairs with valid result bindings", () => {
+  it("contains prompt-only turns with planned result names", () => {
     const filename = resolve(__dirname, "../demo/tracepad-vscode-demo.ipynb");
     const notebook = JSON.parse(readFileSync(filename, "utf8")) as { cells: NotebookCell[] };
     const prompts = notebook.cells.filter(cell => cell.metadata.tracepad?.role === "prompt");
     const codes = notebook.cells.filter(cell => cell.metadata.tracepad?.role === "code");
     expect(prompts).toHaveLength(3);
-    expect(codes).toHaveLength(3);
+    expect(codes).toHaveLength(0);
+    expect(prompts.map(cell => cell.metadata.tracepad?.alias)).toEqual([
+      "orders",
+      "monthly_revenue",
+      "revenue_chart"
+    ]);
 
     for (const prompt of prompts) {
-      const code = codes.find(candidate => candidate.metadata.tracepad?.turnId === prompt.metadata.tracepad?.turnId);
       expect(prompt.cell_type).toBe("markdown");
       expect(prompt.metadata.tracepad?.role).toBe("prompt");
-      expect(code).toBeDefined();
-      if (!code) continue;
-      expect(code.cell_type).toBe("code");
-      expect(code.metadata.tracepad?.role).toBe("code");
-      expect(code.metadata.tracepad?.turnId).toBe(prompt.metadata.tracepad?.turnId);
-      expect(code.metadata.tracepad?.turnNumber).toBe(prompt.metadata.tracepad?.turnNumber);
-      expect(code.source.join("")).toContain(code.metadata.tracepad?.runtimeName);
-      expect(code.source.join("")).toContain(`@${code.metadata.tracepad?.alias}`);
-      expect(code.execution_count === null || typeof code.execution_count === "number").toBe(true);
-      expect(Array.isArray(code.outputs)).toBe(true);
+      expect(prompt.source.join("")).toMatch(/^%%ai\n/);
+      expect(prompt.outputs).toBeUndefined();
     }
   });
 

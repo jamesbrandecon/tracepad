@@ -30,9 +30,9 @@ Windows PowerShell:
 .\scripts\install_vscode.ps1
 ```
 
-Run these commands from the repository root. The installer builds the private
-VSIX and installs both it and the required Microsoft Jupyter extension. Reload
-VS Code afterward.
+Run these commands from the repository root. The installer builds the VSIX and
+installs both it and the required Microsoft Jupyter extension. Reload VS Code
+afterward.
 
 For extension development, open `vscode-extension/` in VS Code and press `F5`
 after running:
@@ -75,9 +75,12 @@ are supported for headless setups; see the root README for their names. Run
 **Tracepad: Show Diagnostics** to inspect configuration discovery and provider
 readiness without exposing credential values.
 
-Generation sends the English request and source code for the small, adaptive
-set of referenced cells to the selected provider. It does not send saved cell
-outputs or table previews automatically.
+Generation sends the English request and source from the notebook's other code
+cells to the selected provider. Explicit `@result` references receive separate
+tracking metadata. It does not send saved cell outputs or table previews, and
+it applies best-effort redaction to common secrets before the request. See
+[What Tracepad sends to the AI](../README.md#what-tracepad-sends-to-the-ai) for
+the request contract and privacy details shared by both notebook hosts.
 
 ## Use it
 
@@ -160,8 +163,9 @@ runtime helper still runs generated code and falls back to ordinary Jupyter
 output.
 
 Open `demo/tracepad-vscode-demo.ipynb` from the repository root for an example.
-It reads its bundled `demo/data/retail_orders.csv` and
-shows a source table, a named aggregation, and a child visualization.
+It contains a prompt-only sequence for loading the bundled
+`demo/data/retail_orders.csv`, creating a named aggregation, and generating a
+child visualization. Generate and run the prompts from top to bottom.
 
 Select a Python kernel that contains `ipykernel`; repository installs can use
 `.venv/bin/python` on macOS/Linux or `.venv\Scripts\python.exe` on Windows.

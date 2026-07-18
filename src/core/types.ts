@@ -78,6 +78,17 @@ export interface GenerationRequest {
   context: Record<string, unknown>;
 }
 
+export interface NotebookCodeCellContext {
+  cell_index: number;
+  language: TracepadLanguage;
+  source: string;
+  execution_order?: number;
+  tracepad?: {
+    turn_id?: string;
+    result_alias?: string;
+  };
+}
+
 export type TracepadProviderId = string;
 
 export interface TracepadProvider {

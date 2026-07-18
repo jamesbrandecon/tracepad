@@ -26,6 +26,41 @@ DEFAULT_OPENROUTER_URL = "https://openrouter.ai/api/v1"
 # returned to the browser, written to notebooks, or persisted to disk.
 _SESSION_CONFIG: dict[str, str] = {}
 
+_SECRET_PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
+    (
+        re.compile(
+            r"-----BEGIN(?: [A-Z]+)? PRIVATE KEY-----[\s\S]*?"
+            r"-----END(?: [A-Z]+)? PRIVATE KEY-----",
+            re.IGNORECASE,
+        ),
+        "[REDACTED]",
+    ),
+    (re.compile(r"\bsk-(?:proj-)?[A-Za-z0-9_-]{12,}\b"), "[REDACTED]"),
+    (re.compile(r"\bgh[pousr]_[A-Za-z0-9_]{20,}\b"), "[REDACTED]"),
+    (re.compile(r"\bAKIA[0-9A-Z]{16}\b"), "[REDACTED]"),
+    (re.compile(r"\bxox[baprs]-[A-Za-z0-9-]{10,}\b"), "[REDACTED]"),
+    (
+        re.compile(r"(https?://[^:\s/]+:)[^@\s/]+@", re.IGNORECASE),
+        r"\1[REDACTED]@",
+    ),
+    (
+        re.compile(
+            r"(\b(?:authorization|api[_-]?key|access[_-]?token|auth[_-]?token|"
+            r"password|passwd|secret)\b\s*(?:=|:)\s*)(['\"])([^'\"\n]+)\2",
+            re.IGNORECASE,
+        ),
+        r"\1\2[REDACTED]\2",
+    ),
+    (
+        re.compile(
+            r"(\b(?:authorization|api[_-]?key|access[_-]?token|auth[_-]?token|"
+            r"password|passwd|secret)\b\s*(?:=|:)\s*)(?!['\"])([^\s,;]+)",
+            re.IGNORECASE,
+        ),
+        r"\1[REDACTED]",
+    ),
+)
+
 
 def _clean_language(value: object) -> str:
     language = str(value or "python").lower()
@@ -40,6 +75,30 @@ def _clean_base_url(value: object, default: str) -> str:
     if parsed.scheme not in {"http", "https"} or not parsed.netloc:
         raise RuntimeError("Provider URL must be an http or https URL.")
     return url
+
+
+def _redact_sensitive_text(value: str) -> str:
+    """Best-effort removal of common credentials before provider requests."""
+
+    redacted = value
+    for pattern, replacement in _SECRET_PATTERNS:
+        redacted = pattern.sub(replacement, redacted)
+    return redacted
+
+
+def _redact_generation_context(value: Any) -> Any:
+    if isinstance(value, str):
+        return _redact_sensitive_text(value)
+    if isinstance(value, list):
+        return [_redact_generation_context(item) for item in value]
+    if isinstance(value, tuple):
+        return [_redact_generation_context(item) for item in value]
+    if isinstance(value, dict):
+        return {
+            str(key): _redact_generation_context(item)
+            for key, item in value.items()
+        }
+    return value
 
 
 def _json_request(
@@ -243,19 +302,22 @@ def _system_instructions() -> str:
         "You generate concise, executable notebook code. Return JSON only with keys "
         "code and notes. The code value must be one string containing the entire program, "
         "never an array. Use the supplied kernel language and do not include markdown "
-        "fences or credentials. Use existing notebook variables and Tracepad references "
+        "fences. Do not generate code that embeds, prints, or requests secrets; use "
+        "environment variables or established credential providers. Use existing notebook "
+        "variables and Tracepad references "
         "when supplied. Make the final expression the table, plot, or model the user is "
         "most likely to inspect. For model objects, preserve the fitted object as the final "
         "expression so Tracepad can discover summary, coefficients, fitted values, predict, "
-        "and plot capabilities."
+        "and plot capabilities. Tracepad handles display, result registration, and lineage "
+        "tracking after execution."
     )
 
 
 def _generation_input(prompt: str, language: str, context: Dict[str, Any]) -> str:
     return "\n".join([
         f"Kernel language: {language}",
-        f"User request: {prompt}",
-        f"Notebook context: {json.dumps(context, ensure_ascii=True)}",
+        f"User request: {_redact_sensitive_text(prompt)}",
+        f"Notebook context: {json.dumps(_redact_generation_context(context), ensure_ascii=True)}",
     ])
 
 
@@ -312,9 +374,10 @@ def _openai_generation(
     }
     payload = _apply_parameters({
         "model": model,
+        "store": False,
         "instructions": _system_instructions(),
         "input": _generation_input(prompt, language, context),
-    }, parameters or {}, {"model", "instructions", "input"})
+    }, parameters or {}, {"model", "store", "instructions", "input"})
     response = _json_request(
         f"{runtime['base_url']}/{runtime.get('endpoint', 'responses').lstrip('/')}",
         method="POST",
@@ -344,11 +407,12 @@ def _chat_generation(
 ) -> dict[str, str]:
     payload = _apply_parameters({
         "model": model,
+        "store": False,
         "messages": [
             {"role": "system", "content": _system_instructions()},
             {"role": "user", "content": _generation_input(prompt, language, context)},
         ],
-    }, parameters, {"model", "messages"})
+    }, parameters, {"model", "store", "messages"})
     response = _json_request(
         f"{provider['base_url']}/{provider.get('endpoint', 'chat/completions').lstrip('/')}",
         method="POST",

@@ -4,6 +4,7 @@ import type {
   GenerationResponse,
   InspectCapability,
   InspectResult,
+  NotebookCodeCellContext,
   ProviderConfiguration,
   ProviderStatusResponse,
   TracepadLanguage,
@@ -22,6 +23,7 @@ export interface TracepadNotebookHost {
   persistState(state: TracepadState): void;
   subscribeStateChanged(listener: () => void): () => void;
   variableNames(): string[];
+  notebookCode(excludeTurnId?: string): NotebookCodeCellContext[];
 
   ensureTurn(turn: TracepadTurn): void;
   hasOutput(turn: TracepadTurn): boolean;

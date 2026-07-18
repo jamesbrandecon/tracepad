@@ -8,6 +8,22 @@ export interface GenerationReference {
   source?: string;
 }
 
+export interface NotebookCodeCell {
+  cellNumber: number;
+  language: string;
+  source: string;
+  executionOrder?: number;
+  tracepadResult?: {
+    alias: string;
+    runtimeName: string;
+  };
+}
+
+export interface GenerationContext {
+  references: GenerationReference[];
+  notebookCode: NotebookCodeCell[];
+}
+
 export interface GenerationResult {
   code: string;
   notes: string;
@@ -21,7 +37,7 @@ export async function generateCode(
   prompt: string,
   language: string,
   runtimeName: string,
-  references: GenerationReference[],
+  context: GenerationContext,
   signal?: AbortSignal
 ): Promise<GenerationResult> {
   const profile = registry.profiles[registry.activeProfile];
@@ -38,9 +54,12 @@ export async function generateCode(
   }
 
   const instructions = systemInstructions(language, runtimeName);
+  const safePrompt = redactSensitiveText(prompt);
+  const safeContext = sanitizeGenerationContext(context);
   const input = [
-    `User request: ${prompt}`,
-    `Available references: ${JSON.stringify(references)}`
+    `User request: ${safePrompt}`,
+    `Notebook code (source only; cell outputs are excluded): ${JSON.stringify(safeContext.notebookCode)}`,
+    `Available Tracepad references: ${JSON.stringify(safeContext.references)}`
   ].join("\n");
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -50,17 +69,22 @@ export async function generateCode(
 
   let raw = "";
   if (provider.driver === "openai-responses") {
-    const payload = applyParameters({ model, instructions, input }, profile.parameters, new Set(["model", "instructions", "input"]));
+    const payload = applyParameters(
+      { model, store: false, instructions, input },
+      profile.parameters,
+      new Set(["model", "store", "instructions", "input"])
+    );
     const response = await fetchJson(endpoint(provider, "responses"), payload, headers, signal);
     raw = extractResponsesText(response);
   } else if (provider.driver === "openai-chat") {
     const payload = applyParameters({
       model,
+      store: false,
       messages: [
         { role: "system", content: instructions },
         { role: "user", content: input }
       ]
-    }, profile.parameters, new Set(["model", "messages"]));
+    }, profile.parameters, new Set(["model", "store", "messages"]));
     const response = await fetchJson(endpoint(provider, "chat/completions"), payload, headers, signal);
     raw = String((response.choices as any[])?.[0]?.message?.content ?? "");
   } else {
@@ -84,7 +108,7 @@ export async function generateCode(
   }
   return {
     ...parsed,
-    code: prependReferenceBindings(boundCode, language, references),
+    code: prependReferenceBindings(boundCode, language, context.references),
     notes: boundCode === parsed.code
       ? parsed.notes
       : `${parsed.notes} Tracepad added the reusable result binding.`,
@@ -106,10 +130,39 @@ export function systemInstructions(language: string, runtimeName: string): strin
     "Use the readable alias in executable code; Tracepad binds it to runtimeName without copying the object.",
     "Bind the actual reusable result object, not a dictionary or list containing previews, shapes, columns, dtypes, summaries, or diagnostics.",
     "For tabular requests, bind the full data frame or lazy table; Tracepad renders its own bounded preview and metadata.",
+    "The notebook context contains source code only; do not invent output values that were not supplied.",
     `The response is invalid unless the code literally creates ${runtimeName} according to the next instruction.`,
     resultContract,
-    "Never include credentials."
+    "Tracepad handles display, result registration, and lineage tracking after execution.",
+    "Do not generate code that embeds, prints, or requests secrets; use environment variables or established credential providers."
   ].join(" ");
+}
+
+export function redactSensitiveText(value: string): string {
+  const patterns: Array<[RegExp, string]> = [
+    [/-----BEGIN(?: [A-Z]+)? PRIVATE KEY-----[\s\S]*?-----END(?: [A-Z]+)? PRIVATE KEY-----/gi, "[REDACTED]"],
+    [/\bsk-(?:proj-)?[A-Za-z0-9_-]{12,}\b/g, "[REDACTED]"],
+    [/\bgh[pousr]_[A-Za-z0-9_]{20,}\b/g, "[REDACTED]"],
+    [/\bAKIA[0-9A-Z]{16}\b/g, "[REDACTED]"],
+    [/\bxox[baprs]-[A-Za-z0-9-]{10,}\b/g, "[REDACTED]"],
+    [/(https?:\/\/[^:\s/]+:)[^@\s/]+@/gi, "$1[REDACTED]@"],
+    [/(\b(?:authorization|api[_-]?key|access[_-]?token|auth[_-]?token|password|passwd|secret)\b\s*(?:=|:)\s*)(["'])([^"'\n]+)\2/gi, "$1$2[REDACTED]$2"],
+    [/(\b(?:authorization|api[_-]?key|access[_-]?token|auth[_-]?token|password|passwd|secret)\b\s*(?:=|:)\s*)(?!["'])([^\s,;]+)/gi, "$1[REDACTED]"]
+  ];
+  return patterns.reduce((result, [pattern, replacement]) => result.replace(pattern, replacement), value);
+}
+
+function sanitizeGenerationContext(context: GenerationContext): GenerationContext {
+  return {
+    references: context.references.map(reference => ({
+      ...reference,
+      ...(reference.source === undefined ? {} : { source: redactSensitiveText(reference.source) })
+    })),
+    notebookCode: context.notebookCode.map(cell => ({
+      ...cell,
+      source: redactSensitiveText(cell.source)
+    }))
+  };
 }
 
 function generationJsonSchema(): Record<string, unknown> {

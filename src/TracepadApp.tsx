@@ -136,17 +136,12 @@ export function TracepadApp({ host, onOpenClassic }: TracepadAppProps): JSX.Elem
         prompt,
         language: turn.language,
         context: {
-          notebook_path: host.path,
+          notebook_code: host.notebookCode(turn.id),
           notebook_variables: host.variableNames(),
-          references: referencedObjects.map(object => ({
-            token: `@${object.alias}`,
-            runtime_name: object.alias,
-            type: object.kind,
-            language: object.language,
-            class_names: object.classNames,
-            columns: object.preview?.columns ?? []
-          })),
-          parent: turn.parentObjectId ? state.objects[turn.parentObjectId] : null
+          references: referencedObjects.map(generationObjectContext),
+          parent: turn.parentObjectId
+            ? generationObjectContext(state.objects[turn.parentObjectId])
+            : null
         }
       };
       const response = await host.generate(payload);
@@ -393,4 +388,17 @@ export function TracepadApp({ host, onOpenClassic }: TracepadAppProps): JSX.Elem
       ) : null}
     </div>
   );
+}
+
+function generationObjectContext(object: TracepadObject | undefined): Record<string, unknown> | null {
+  if (!object) return null;
+  return {
+    token: `@${object.alias}`,
+    runtime_name: object.alias,
+    type: object.kind,
+    language: object.language,
+    class_names: object.classNames,
+    capabilities: object.capabilities,
+    columns: object.preview?.columns ?? []
+  };
 }
