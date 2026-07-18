@@ -23,18 +23,25 @@ analysis path through a notebook. The resulting flow is:
 `natural language request -> editable generated code -> native kernel output -> follow-up by name`
 
 ## Notebook hosts
-Tracepad implements this workflow in two common notebook interfaces:
+Tracepad implements this workflow in three notebook interfaces:
 
 | Host | Experience |
 | --- | --- |
 | JupyterLab | Full-page Tracepad notebook with inline inspection and lineage |
 | VS Code | Native Markdown prompts, code cells, outputs, and Tracepad command chords |
+| Marimo | Native reactive Python cells with AI generation, `@variable` context, and inline Tracepad inspection |
 
-Both hosts edit ordinary `.ipynb` files and use the notebook's kernel. Generated
+JupyterLab and VS Code edit ordinary `.ipynb` files and use the notebook's kernel. Generated
 code therefore remains visible in other notebook editors even when Tracepad is
 not installed. After submission, prompt cells become ordinary Markdown. The
 JupyterLab interface below shows a prompt, generated code, named results, and
 the evolving inspection pane.
+
+Marimo stores notebooks as ordinary Python files and executes them as a
+reactive dependency graph. Tracepad uses Marimo's native AI generation instead
+of emulating an `.ipynb` prompt cell: English requests remain visible as prompt
+cards, generated code is a normal editable Marimo cell, and named Python
+variables are the reusable results.
 
 ![Tracepad running an analysis and inspecting the resulting data frame](docs/images/tracepad-guided-notebook.png)
 
@@ -56,10 +63,11 @@ Choose one notebook host and one model provider before starting:
 | --- | --- |
 | JupyterLab | You want Tracepad's full-page notebook, inspector, and lineage UI |
 | VS Code | You want native VS Code Markdown, code cells, outputs, and commands |
+| Marimo | You want reactive execution, native variable references, and a Python-file notebook |
 
-Model providers include OpenAI, OpenRouter, and local Ollama models. Both hosts provide an in-product setup
-flow for choosing a model. Users can enter hosted-provider credentials through Tracepad's model
-dialog or VS Code SecretStorage.
+Model providers include OpenAI, OpenRouter, and local Ollama models. JupyterLab
+and VS Code provide Tracepad setup flows; Marimo uses its native AI provider
+settings.
 
 ### Clone the repository
 
@@ -91,7 +99,7 @@ If local PowerShell policy blocks repository scripts, first run
 and install Tracepad plus the demo dependencies. Both demo commands open
 `tracepad_demo.ipynb` in JupyterLab.
 
-The bundled demos contain prompts only. Generate and run them from top to
+The bundled `.ipynb` demos contain prompts only. Generate and run them from top to
 bottom to create the code, outputs, named results, and lineage yourself.
 
 Verify the installation without starting another server:
@@ -105,6 +113,38 @@ The verifier checks the installed Python package, authenticated server
 extension, prebuilt JupyterLab extension, and registered Tracepad kernel. Open an `.ipynb` with
 **Tracepad Notebook** or use **Jupyter view** in the Tracepad header to switch
 the same document back to the conventional editor.
+
+## Install for Marimo
+
+Prerequisites: Git, [uv](https://docs.astral.sh/uv/), and Python 3.10 or newer.
+From the cloned repository:
+
+```bash
+uv venv --python 3.12
+uv pip install ".[demo,marimo]"
+uv run --no-sync marimo edit demo/tracepad_marimo_demo.py
+```
+
+The same commands work in Windows PowerShell. Marimo opens the demo as a
+reactive Python notebook. Use its global Run control once to populate the
+included analysis, or replace an example analysis cell by selecting
+**Generate with AI** and entering the prompt shown above it.
+
+Configure a provider in Marimo's **Settings > AI** before generating. Marimo
+supports hosted providers, OpenRouter, Ollama, and custom OpenAI-compatible
+endpoints; Tracepad does not select a provider or model. Repository rules in
+`pyproject.toml` ask the model to create one concise executable cell, reuse
+live variables named with `@`, preserve fitted models, and finish with an
+appropriate Tracepad inspection card.
+
+Marimo references are native Python variables. A prompt such as `Using
+@monthly_revenue, plot net revenue over time` lets Marimo attach that live
+value as AI context. The **Variables** and **Dependencies** panels show the
+reactive graph, while `tracepad.marimo.inspect(...)` adds Preview, Explore,
+Profile, Coefficients, Predictions, and Diagnostics tabs appropriate to the
+returned object.
+
+![Tracepad running a reactive analysis in Marimo](docs/images/tracepad-marimo-notebook.png)
 
 ## Install for VS Code
 
@@ -186,10 +226,11 @@ Tracepad includes Ollama, OpenAI, and OpenRouter adapters but does not choose a
 provider or model. Generation remains disabled until the user selects an exact
 model. API keys are never stored in notebooks, settings, or YAML.
 
-For a first run, use the **Model** control in JupyterLab or VS Code. Hosted
-providers ask for an exact model and store the key only in the current
-Jupyter server process or VS Code SecretStorage. Ollama discovers models from
-the local server and also permits manual model entry.
+For a first run, use the **Model** control in JupyterLab or VS Code, or
+**Settings > AI** in Marimo. Hosted providers ask for an exact model. Tracepad
+stores a key only in the current Jupyter server process or VS Code
+SecretStorage; Marimo manages its own provider credentials. Ollama discovers
+models from the local server and also permits manual model entry.
 
 For shared parameters or multiple reusable profiles, optionally create
 `tracepad.yaml` beside the notebook. An installation agent may create this
@@ -224,6 +265,17 @@ key. Tracepad reads workspace `tracepad.yaml`, the user configuration at
 Values entered in JupyterLab live only in the Jupyter server process.
 
 ![Tracepad model setup](docs/images/tracepad-provider-setup.png)
+
+### Marimo model handoff
+
+1. Start the demo with `uv run --no-sync marimo edit demo/tracepad_marimo_demo.py`.
+2. Open **Settings > AI** in Marimo.
+3. Choose and configure an exact provider and model.
+4. Select **Generate with AI** below a prompt card to create a native cell.
+
+Tracepad contributes project-level generation rules but delegates provider
+credentials and request transport to Marimo. Do not put credentials in the
+notebook, prompt text, or `pyproject.toml`.
 
 ### VS Code model handoff
 
@@ -312,15 +364,19 @@ The exact prompt builders are maintained in
 [`src/tracepad/server.py`](src/tracepad/server.py) and
 [`vscode-extension/src/providerClient.ts`](vscode-extension/src/providerClient.ts).
 
+Marimo generation is intentionally different: Marimo constructs and sends the
+AI request itself. Tracepad's `[tool.marimo.ai]` rules add only the result,
+reference, and inspection contract. Marimo decides how notebook code and live
+`@variable` values are supplied to the configured provider.
+
 ## Installation success criteria
 
 An agent-assisted setup is complete when:
 
-- the selected host reports the Tracepad extension as installed;
-- the demo notebook opens with the expected Tracepad or native VS Code UI;
-- a Python kernel containing `ipykernel` can execute an ordinary code cell;
+- the selected host opens its demo with the expected Tracepad interface;
+- its Python runtime can execute an ordinary code cell;
 - the selected provider and exact model report ready;
-- a `%%ai` prompt generates editable code; and
+- a Tracepad prompt or Marimo AI request generates editable code; and
 - the user, not the agent, supplied any hosted-provider credential.
 
 ## Report an alpha issue
@@ -343,6 +399,9 @@ paths and notebook content before posting.
 | `style/index.css` | JupyterLab's conventional stylesheet entrypoint and Tracepad UI rules |
 | `tracepad/labextension/` | Prebuilt JupyterLab bundle used by repository and wheel installs |
 | `vscode-extension/` | Native VS Code notebook host and VSIX package |
+| `src/tracepad/marimo.py` | Marimo-native prompts, inspection, model diagnostics, and lineage helpers |
+| `demo/tracepad_marimo_demo.py` | Reactive Marimo demo using the synthetic retail data |
+| `style/marimo.css` | Repository-local cobalt styling loaded through `pyproject.toml` |
 | `scripts/*.py` with `.sh`/`.ps1` wrappers | Cross-platform installation, launch, verification, and packaging |
 
 These files belong to separate packaging layers; none are interchangeable.
@@ -353,13 +412,14 @@ macOS or Linux:
 
 ```bash
 python3 -m venv .venv
-.venv/bin/python -m pip install ".[dev,demo]"
+.venv/bin/python -m pip install ".[dev,demo,marimo]"
 pnpm install
 PYTHON=.venv/bin/python pnpm build
 pnpm test
 pnpm --dir vscode-extension check
 pnpm --dir vscode-extension test
 .venv/bin/pytest -q
+.venv/bin/python -m marimo check demo/tracepad_marimo_demo.py
 ```
 
 Build local artifacts without publishing them:
@@ -382,10 +442,14 @@ not releases.
 ## Storage and security
 
 - Prompts, generated code metadata, result names, and lineage are stored in
-  standard notebook cells and `metadata.tracepad`.
-- API keys stay in the Jupyter server process or VS Code SecretStorage.
+  standard notebook cells and `metadata.tracepad` for `.ipynb` hosts. Marimo
+  stores prompts, code, variables, and dependencies in its ordinary Python
+  notebook source and reactive graph.
+- API keys stay in the Jupyter server process, VS Code SecretStorage, or the
+  configured Marimo provider store; they are not written by Tracepad.
 - Generated code has the same authority as any code run in the active kernel;
   review it before execution.
-- Ollama discovery runs from the Jupyter server or VS Code extension host. On a
-  remote machine, `127.0.0.1` refers to that remote machine.
+- Ollama discovery runs from the Jupyter server, VS Code extension host, or
+  Marimo process. On a remote machine, `127.0.0.1` refers to that remote
+  machine.
 - Do not disable Jupyter authentication on shared or network-accessible hosts.
