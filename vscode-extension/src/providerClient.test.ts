@@ -51,11 +51,12 @@ describe("Tracepad generation contract", () => {
   });
 
   it("redacts common secrets without removing ordinary notebook code", () => {
-    const source = 'api_key = "sk-proj-abcdefghijklmnop"\norders = load_orders()';
+    const fakeToken = ["sk-proj", "abcdefghijklmnop"].join("-");
+    const source = `api_key = "${fakeToken}"\norders = load_orders()`;
     expect(redactSensitiveText(source)).toBe(
       'api_key = "[REDACTED]"\norders = load_orders()'
     );
-    expect(redactSensitiveText("api_key = sk-proj-abcdefghijklmnop"))
+    expect(redactSensitiveText(`api_key = ${fakeToken}`))
       .toBe("api_key = [REDACTED]");
   });
 
@@ -136,6 +137,7 @@ describe("Tracepad generation contract", () => {
   });
 
   it("sends code-only notebook context with stateless hosted requests", async () => {
+    const fakeToken = ["sk-proj", "abcdefghijklmnop"].join("-");
     const fetchMock = vi.fn(async () => new Response(JSON.stringify({
       output: [{ content: [{ text: JSON.stringify({
         code: "tracepad_result_2 = orders.describe()\ntracepad_result_2",
@@ -173,12 +175,12 @@ describe("Tracepad generation contract", () => {
         alias: "orders",
         runtimeName: "tracepad_result_1",
         turnNumber: "1",
-        source: 'api_key = "sk-proj-abcdefghijklmnop"\norders = load_orders()'
+        source: `api_key = "${fakeToken}"\norders = load_orders()`
       }],
       notebookCode: [{
         cellNumber: 1,
         language: "python",
-        source: 'api_key = "sk-proj-abcdefghijklmnop"\norders = load_orders()',
+        source: `api_key = "${fakeToken}"\norders = load_orders()`,
         executionOrder: 1
       }]
     });
@@ -188,7 +190,7 @@ describe("Tracepad generation contract", () => {
     expect(body.input).toContain("Prior notebook code (reference material only; cell outputs are excluded)");
     expect(body.input).toContain("orders = load_orders()");
     expect(body.input).toContain("[REDACTED]");
-    expect(body.input).not.toContain("sk-proj-abcdefghijklmnop");
+    expect(body.input).not.toContain(fakeToken);
     expect(body.input).not.toContain("transport-secret");
     expect(body.input.indexOf("Prior notebook code")).toBeLessThan(
       body.input.indexOf("Active user request")
