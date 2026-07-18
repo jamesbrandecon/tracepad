@@ -60,6 +60,7 @@ def test_prompt_returns_a_marimo_display_object():
 
 def test_demo_is_importable_and_defines_a_marimo_app():
     path = ROOT / "demo" / "tracepad_marimo_demo.py"
+    source = path.read_text(encoding="utf-8")
     specification = importlib.util.spec_from_file_location("tracepad_marimo_demo", path)
     assert specification is not None and specification.loader is not None
     module = importlib.util.module_from_spec(specification)
@@ -67,3 +68,7 @@ def test_demo_is_importable_and_defines_a_marimo_app():
 
     assert module.app is not None
     assert module.__generated_with == "0.23.14"
+    assert source.count("tracepad_marimo.prompt(") == 5
+    assert "pd.read_csv" not in source
+    assert "plt.subplots" not in source
+    assert ".fit()" not in source

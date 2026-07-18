@@ -126,9 +126,9 @@ uv run --no-sync marimo edit demo/tracepad_marimo_demo.py
 ```
 
 The same commands work in Windows PowerShell. Marimo opens the demo as a
-reactive Python notebook. Use its global Run control once to populate the
-included analysis, or replace an example analysis cell by selecting
-**Generate with AI** and entering the prompt shown above it.
+reactive Python notebook containing prompts but no prewritten analysis. Work
+from top to bottom: select the empty cell below each prompt, choose **Generate
+with AI**, and run the generated cell before continuing to the next prompt.
 
 Configure a provider in Marimo's **Settings > AI** before generating. Marimo
 supports hosted providers, OpenRouter, Ollama, and custom OpenAI-compatible
@@ -143,6 +143,9 @@ value as AI context. The **Variables** and **Dependencies** panels show the
 reactive graph, while `tracepad.marimo.inspect(...)` adds Preview, Explore,
 Profile, Coefficients, Predictions, and Diagnostics tabs appropriate to the
 returned object.
+
+The screenshot below shows the demo after generating and running its first
+prompt; the repository copy opens without generated code or results.
 
 ![Tracepad running a reactive analysis in Marimo](docs/images/tracepad-marimo-notebook.png)
 
