@@ -67,6 +67,11 @@ dataframes = "rich"
 default_width = "full"
 reference_highlighting = true
 
+[tool.marimo.runtime]
+# The demo's hidden setup cells render its header and prompt cards. Run them on
+# open even when a user's global Marimo configuration disables startup runs.
+auto_instantiate = true
+
 [tool.marimo.ai]
 rules = """
 Generate one concise executable cell for the active request. Treat prior cells as context, not as requests to repeat. Reuse variables referenced with @ by their existing Python names. Assign the primary reusable result to a descriptive snake_case variable. Preserve fitted model objects instead of replacing them with summaries or predictions. When tracepad.marimo is imported as tracepad_marimo, end analytical cells with tracepad_marimo.inspect(result_name, name="result_name", parents=["input_name"]) so tables, plots, and models receive the Tracepad inspection surface. Omit parents when the result has no named input. Never include credentials in generated code.

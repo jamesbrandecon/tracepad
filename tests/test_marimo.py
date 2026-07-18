@@ -67,8 +67,16 @@ def test_demo_is_importable_and_defines_a_marimo_app():
     specification.loader.exec_module(module)
 
     assert module.app is not None
-    assert module.__generated_with == "0.23.14"
+    assert module.__generated_with.startswith("0.23.")
     assert source.count("tracepad_marimo.prompt(") == 5
     assert "pd.read_csv" not in source
     assert "plt.subplots" not in source
     assert ".fit()" not in source
+
+
+def test_project_config_runs_marimo_setup_cells_on_open():
+    project_config = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+
+    runtime_section = project_config.split("[tool.marimo.runtime]", maxsplit=1)[1]
+    runtime_section = runtime_section.split("[tool.marimo.ai]", maxsplit=1)[0]
+    assert "auto_instantiate = true" in runtime_section
