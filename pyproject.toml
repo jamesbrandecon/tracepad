@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "tracepad"
-version = "0.3.9"
+version = "0.3.10"
 description = "An inspectable, AI-assisted notebook interface for JupyterLab"
 readme = "README.md"
 license-files = ["LICENSE"]

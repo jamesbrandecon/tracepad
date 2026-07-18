@@ -104,7 +104,7 @@ py -3 .\scripts\verify_install.py       # Windows PowerShell
 ```
 
 The verifier checks the installed Python package, authenticated server
-extension, and prebuilt JupyterLab extension. Open an `.ipynb` with
+extension, prebuilt JupyterLab extension, and registered Tracepad kernel. Open an `.ipynb` with
 **Tracepad Notebook** or use **Jupyter view** in the Tracepad header to switch
 the same document back to the conventional editor.
 
@@ -135,11 +135,20 @@ Windows PowerShell:
 ```
 
 The installer resolves pnpm or Corepack, builds the locked VSIX, installs the
-Microsoft Jupyter dependency, and installs Tracepad. Reload VS Code, open an
-`.ipynb`, and select `.venv/bin/python` on macOS/Linux or
-`.venv\Scripts\python.exe` on Windows as the kernel. Choose **Model** once to
-select a provider, exact model, and any required credential. Then choose
-**AI Prompt** or begin a Markdown cell with `%%ai`.
+Microsoft Jupyter dependency, creates `.venv`, installs the Python package and
+demo dependencies, and registers a project-local kernel. Reload VS Code, open
+an `.ipynb`, and select
+**Tracepad (.venv)** from the kernel picker. If VS Code lists only interpreter
+paths, choose the one ending in `.venv/bin/python` on macOS/Linux or
+`.venv\Scripts\python.exe` on Windows. Avoid an unrelated system or Conda
+kernel. Choose **Model** once to select a provider, exact model, and any required
+credential. Then choose **AI Prompt** or begin a Markdown cell with `%%ai`.
+
+With a Tracepad prompt selected, **Generate with Tracepad** runs the same action
+as `Option/Alt+T`, then `G`: it sends the existing Markdown request to the
+configured provider and creates or updates its paired code cell. VS Code or
+GitHub Copilot may separately contribute a generic **Generate** action that
+opens an inline prompt; that is not a Tracepad control.
 
 ![Annotated Tracepad generation flow in VS Code](docs/images/tracepad-vscode-notebook.png)
 

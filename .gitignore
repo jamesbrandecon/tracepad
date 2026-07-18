@@ -5,6 +5,7 @@
 .pytest_cache/
 .ruff_cache/
 .venv/
+.vscode/
 __pycache__/
 *.egg-info/
 *.log

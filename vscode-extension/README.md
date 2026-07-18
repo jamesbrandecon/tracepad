@@ -81,7 +81,10 @@ outputs or table previews automatically.
 
 ## Use it
 
-1. Open a Python, R, Julia, or SQL `.ipynb` with a working Jupyter kernel.
+1. Open a Python, R, Julia, or SQL `.ipynb` with a working Jupyter kernel. For
+   the repository demo, select **Tracepad (.venv)**. If VS Code shows only
+   paths, select the interpreter ending in `.venv/bin/python` on macOS/Linux
+   or `.venv\Scripts\python.exe` on Windows.
 2. Select **AI Prompt** in the notebook toolbar, or start any Markdown cell
    with `%%ai`. Write ordinary English beneath the marker. Tracepad does not
    pre-create an empty code cell.
@@ -90,8 +93,11 @@ outputs or table previews automatically.
    (for example `@1`) resolve to the same stable kernel object. Generated code
    shows the friendly-to-stable binding, such as
    `orders = tracepad_result_1`; this does not copy the object.
-4. Press `Option+T`, then `G` (`Alt+T`, then `G` on Windows/Linux) to generate
-   code without running it. After generation,
+4. Choose **Generate with Tracepad**, or press `Option+T`, then `G` (`Alt+T`,
+   then `G` on Windows/Linux), to generate code without running it. Both invoke
+   the same command on the current prompt. VS Code or GitHub Copilot may also
+   show a generic **Generate** action that opens its own inline prompt; that is
+   not a Tracepad control. After generation,
    Tracepad removes `%%ai`, leaves a plain portable Markdown request, and
    inserts or updates exactly one paired code cell below it.
 5. Review or edit the code and use VS Code's normal Run control, or press

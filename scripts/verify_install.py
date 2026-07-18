@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import subprocess
 import sys
@@ -39,6 +40,19 @@ def capture(executable: str, arguments: list[str], environment: dict[str, str]) 
     return result.stdout
 
 
+def capture_json(executable: str, arguments: list[str], environment: dict[str, str]) -> dict[str, object]:
+    result = subprocess.run(
+        [executable, *arguments],
+        cwd=ROOT_DIR,
+        env=environment,
+        check=True,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    return json.loads(result.stdout)
+
+
 def main() -> int:
     args = parse_args()
     venv = resolve_venv(args.venv)
@@ -57,14 +71,18 @@ def main() -> int:
     version = capture(python, ["-c", "import tracepad; print(tracepad.__version__)"], environment).strip()
     server = capture(jupyter, ["server", "extension", "list"], environment)
     lab = capture(jupyter, ["labextension", "list"], environment)
+    kernels = capture_json(jupyter, ["kernelspec", "list", "--json"], environment)
     if "tracepad" not in server.lower():
         raise RuntimeError("Tracepad's Jupyter server extension is not enabled.")
     if "@tracepad/jupyterlab" not in lab.lower():
         raise RuntimeError("Tracepad's JupyterLab extension is not installed.")
+    if "tracepad" not in kernels.get("kernelspecs", {}):
+        raise RuntimeError("Tracepad's local Python kernelspec is not installed.")
 
     print(f"Tracepad {version}: Python import OK")
     print("Tracepad Jupyter server extension: OK")
     print("Tracepad JupyterLab extension: OK")
+    print("Tracepad Python kernel: OK")
     return 0
 
 

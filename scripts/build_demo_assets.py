@@ -71,9 +71,9 @@ def source_lines(text: str) -> list[str]:
 def notebook_metadata(tracepad_state: dict[str, object]) -> dict[str, object]:
     return {
         "kernelspec": {
-            "display_name": "Python 3 (ipykernel)",
+            "display_name": "Tracepad (.venv)",
             "language": "python",
-            "name": "python3",
+            "name": "tracepad",
         },
         "language_info": {"name": "python", "version": "3.11"},
         "tracepad": tracepad_state,

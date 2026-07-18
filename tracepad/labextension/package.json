@@ -1,6 +1,6 @@
 {
   "name": "@tracepad/jupyterlab",
-  "version": "0.3.9",
+  "version": "0.3.10",
   "description": "Tracepad full-page JupyterLab interface",
   "packageManager": "pnpm@10.17.1",
   "license": "MIT",
@@ -47,7 +47,7 @@
     "extension": "lib/index.js",
     "outputDir": "tracepad/labextension",
     "_build": {
-      "load": "static/remoteEntry.308bd54db973ef05741c.js",
+      "load": "static/remoteEntry.e2e434d14026db890cb2.js",
       "extension": "./extension"
     }
   }

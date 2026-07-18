@@ -22,6 +22,20 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def kernel_install_arguments(venv: Path) -> list[str]:
+    """Return a local kernelspec command with a recognizable picker label."""
+    return [
+        "-m",
+        "ipykernel",
+        "install",
+        "--sys-prefix",
+        "--name",
+        "tracepad",
+        "--display-name",
+        f"Tracepad ({venv.name})",
+    ]
+
+
 def main() -> int:
     args = parse_args()
     if sys.version_info < (3, 9):
@@ -36,8 +50,10 @@ def main() -> int:
 
     requirement = f"{ROOT_DIR}{'' if args.minimal else '[demo]'}"
     subprocess.run([str(python), "-m", "pip", "install", requirement], cwd=ROOT_DIR, check=True)
+    subprocess.run([str(python), *kernel_install_arguments(venv)], cwd=ROOT_DIR, check=True)
 
     print(f"\nTracepad is installed in {venv}")
+    print(f"Notebook kernel: Tracepad ({venv.name})")
     if sys.platform == "win32":
         print(r"Run .\scripts\demo.ps1 to open the guided notebook.")
     else:

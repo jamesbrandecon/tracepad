@@ -56,7 +56,7 @@ describe("VS Code demo notebook", () => {
       };
     };
     const keybindings = new Map(manifest.contributes.keybindings.map(item => [item.command, item]));
-    expect(manifest.version).toBe("0.3.9");
+    expect(manifest.version).toBe("0.3.10");
     expect((manifest as { icon?: string }).icon).toBe("media/tracepad-logo.png");
     expect(manifest.contributes.configuration.properties["tracepad.collapseGeneratedCode"]?.default).toBe(true);
     expect(manifest.contributes.configuration.properties["tracepad.models"]?.default).toEqual({});
@@ -76,5 +76,12 @@ describe("VS Code demo notebook", () => {
     expect(manifest.contributes.commands.map(item => item.command)).toContain("tracepad.fixWithAI");
     expect(manifest.contributes.commands.map(item => item.command)).toContain("tracepad.showLineage");
     expect(manifest.contributes.commands.map(item => item.command)).toContain("tracepad.setupModel");
+    const toolbar = (manifest.contributes as unknown as {
+      menus: { "notebook/toolbar": Array<{ command: string; when: string }> };
+    }).menus["notebook/toolbar"];
+    expect(toolbar).toContainEqual(expect.objectContaining({
+      command: "tracepad.generate",
+      when: expect.stringContaining("tracepad.activePrompt")
+    }));
   });
 });

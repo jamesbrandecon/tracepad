@@ -194,7 +194,7 @@ class TracepadStatusBarProvider implements vscode.NotebookCellStatusBarItemProvi
         ));
       }
       items.push(statusItem(
-        "$(sparkle) Generate",
+        "$(sparkle) Generate with Tracepad",
         vscode.NotebookCellStatusBarAlignment.Right,
         command("tracepad.generate", cell),
         markerPrompt ? "Adopt this %%ai prompt and generate code" : "Generate code from this request",

@@ -37,6 +37,8 @@ def main() -> int:
         print(f"Tracepad VSIX built at {vsix}")
         return 0
 
+    subprocess.run([sys.executable, str(ROOT_DIR / "scripts" / "install.py")], cwd=ROOT_DIR, check=True)
+
     code = find_command("code")
     if not code:
         print("VS Code's 'code' command is not on PATH. Build completed, but installation was skipped.", file=sys.stderr)
@@ -55,7 +57,8 @@ def main() -> int:
         if extension not in installed:
             print(f"VS Code did not report {extension} after installation.", file=sys.stderr)
             return 1
-    print("Tracepad for VS Code is installed. Reload VS Code before opening a notebook.")
+    print("Tracepad for VS Code and its local Python kernel are installed.")
+    print("Reload VS Code, then choose the Tracepad (.venv) notebook kernel.")
     return 0
 
 

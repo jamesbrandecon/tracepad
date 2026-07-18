@@ -2,7 +2,7 @@
   "name": "tracepad-vscode",
   "displayName": "Tracepad",
   "description": "AI-first turns for native Jupyter notebooks in VS Code",
-  "version": "0.3.9",
+  "version": "0.3.10",
   "publisher": "tracepad",
   "private": true,
   "icon": "media/tracepad-logo.png",
@@ -40,8 +40,8 @@
       },
       {
         "command": "tracepad.generate",
-        "title": "Tracepad: Generate Code",
-        "shortTitle": "Generate",
+        "title": "Tracepad: Generate from Current Prompt",
+        "shortTitle": "Generate with Tracepad",
         "icon": "$(sparkle)"
       },
       {
@@ -109,6 +109,11 @@
           "command": "tracepad.setupModel",
           "when": "notebookType == jupyter-notebook",
           "group": "navigation/add@1"
+        },
+        {
+          "command": "tracepad.generate",
+          "when": "notebookType == jupyter-notebook && tracepad.activePrompt",
+          "group": "navigation/add@2"
         }
       ]
     },

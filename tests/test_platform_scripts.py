@@ -4,7 +4,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parents[1] / "scripts"))
 
 from platform_support import process_command, resolve_venv, venv_executable, venv_python
-from verify_install import verification_environment
+from install import kernel_install_arguments
+from verify_install import capture_json, verification_environment
 
 
 def test_virtual_environment_paths_are_native(monkeypatch, tmp_path):
@@ -39,3 +40,29 @@ def test_install_verification_uses_an_isolated_jupyter_config(tmp_path):
     environment = verification_environment(tmp_path / "env")
     assert environment["JUPYTER_CONFIG_DIR"] == str(tmp_path / "env" / ".tracepad-jupyter-config")
     assert Path(environment["JUPYTER_CONFIG_DIR"]).is_dir()
+
+
+def test_installer_registers_a_recognizable_local_kernel(tmp_path):
+    venv = tmp_path / ".venv"
+    assert kernel_install_arguments(venv) == [
+        "-m",
+        "ipykernel",
+        "install",
+        "--sys-prefix",
+        "--name",
+        "tracepad",
+        "--display-name",
+        "Tracepad (.venv)",
+    ]
+
+
+def test_json_verification_ignores_stderr_warnings(tmp_path):
+    value = capture_json(
+        sys.executable,
+        [
+            "-c",
+            "import sys; print('warning', file=sys.stderr); print('{\"ready\": true}')",
+        ],
+        verification_environment(tmp_path / "env"),
+    )
+    assert value == {"ready": True}

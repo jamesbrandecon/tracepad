@@ -1,6 +1,6 @@
 {
   "name": "@tracepad/jupyterlab",
-  "version": "0.3.9",
+  "version": "0.3.10",
   "description": "Tracepad full-page JupyterLab interface",
   "packageManager": "pnpm@10.17.1",
   "license": "MIT",
