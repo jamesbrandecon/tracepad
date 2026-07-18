@@ -37,6 +37,10 @@ def test_jupyterlab_demo_contains_draft_prompt_sequence():
         "obj-demo-model",
         "obj-demo-predict",
     }
+    assert all(
+        result.materialized is False
+        for result in notebook.metadata.tracepad.objects.values()
+    )
 
 
 def test_vscode_demo_contains_prompt_only_reference_flow():

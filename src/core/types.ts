@@ -32,6 +32,8 @@ export interface TracepadObject {
   capabilities: InspectCapability[];
   preview?: TablePreview;
   summary?: string;
+  /** False only for a planned demo result that has never been created. */
+  materialized?: boolean;
   live: boolean;
   createdAt: string;
 }

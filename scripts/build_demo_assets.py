@@ -92,6 +92,7 @@ def placeholder_object(object_id: str, turn_id: str, alias: str, kind: str) -> d
         "classNames": [],
         "kind": kind,
         "capabilities": [],
+        "materialized": False,
         "live": False,
         "createdAt": STAMP,
     }

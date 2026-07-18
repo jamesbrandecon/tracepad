@@ -305,10 +305,14 @@ def _system_instructions() -> str:
         "fences. Do not generate code that embeds, prints, or requests secrets; use "
         "environment variables or established credential providers. Use existing notebook "
         "variables and Tracepad references "
-        "when supplied. Make the final expression the table, plot, or model the user is "
+        "when supplied. Treat prior notebook code strictly as context, not as a request to "
+        "repeat. Answer only the active user request at the end of the message. Make the "
+        "final expression the table, plot, or model the user is "
         "most likely to inspect. For model objects, preserve the fitted object as the final "
         "expression so Tracepad can discover summary, coefficients, fitted values, predict, "
-        "and plot capabilities. Tracepad handles display, result registration, and lineage "
+        "and plot capabilities. When expected_result_name is supplied, assign the primary "
+        "reusable object to that exact variable and leave that variable as the final "
+        "expression. Tracepad handles display, result registration, and lineage "
         "tracking after execution."
     )
 
@@ -316,8 +320,9 @@ def _system_instructions() -> str:
 def _generation_input(prompt: str, language: str, context: Dict[str, Any]) -> str:
     return "\n".join([
         f"Kernel language: {language}",
-        f"User request: {_redact_sensitive_text(prompt)}",
-        f"Notebook context: {json.dumps(_redact_generation_context(context), ensure_ascii=True)}",
+        "Prior notebook context (reference material only; do not repeat it as the answer): "
+        f"{json.dumps(_redact_generation_context(context), ensure_ascii=True)}",
+        f"Active user request (answer only this): {_redact_sensitive_text(prompt)}",
     ])
 
 

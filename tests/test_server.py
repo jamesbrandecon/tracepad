@@ -60,6 +60,8 @@ def test_generation_context_redacts_common_secrets():
     assert server._redact_sensitive_text("api_key = sk-proj-abcdefghijklmnop") == (
         "api_key = [REDACTED]"
     )
+    assert value.index("Prior notebook context") < value.index("Active user request")
+    assert value.rstrip().endswith("Active user request (answer only this): Summarize orders")
 
 
 def test_ollama_is_detected_but_requires_selection(monkeypatch):
@@ -209,6 +211,9 @@ def test_model_prompt_preserves_inspectable_final_object_contract():
     assert "summary, coefficients, fitted values, predict" in instructions
     assert "code value must be one string" in instructions
     assert "environment variables or established credential providers" in instructions
+    assert "Answer only the active user request" in instructions
+    assert "expected_result_name" in instructions
+    assert "exact variable" in instructions
 
 
 def test_openai_generation_disables_storage(monkeypatch):

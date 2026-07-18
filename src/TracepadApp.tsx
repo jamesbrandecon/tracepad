@@ -79,18 +79,23 @@ export function TracepadApp({ host, onOpenClassic }: TracepadAppProps): JSX.Elem
   }, [host]);
 
   const currentLanguage = host.language;
-  const selectedObject = selectedObjectId ? state.objects[selectedObjectId] : null;
+  const selectedObjectCandidate = selectedObjectId ? state.objects[selectedObjectId] : null;
+  const selectedObject = selectedObjectCandidate?.materialized === false ? null : selectedObjectCandidate;
   const liveObjects = useMemo(
     () => Object.values(state.objects).filter(object => object.live).sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
     [state.objects]
   );
-  const allObjects = useMemo(() => Object.values(state.objects), [state.objects]);
+  const materializedObjects = useMemo(
+    () => Object.values(state.objects).filter(object => object.materialized !== false),
+    [state.objects]
+  );
   const lineage = useMemo(() => buildLineageIndex(state), [state]);
   const focusedLineageTurnIds = useMemo(
     () => lineageObjectId ? connectedLineageTurnIds(lineage, lineageObjectId) : new Set<string>(),
     [lineage, lineageObjectId]
   );
-  const lineageObject = lineageObjectId ? state.objects[lineageObjectId] : undefined;
+  const lineageObjectCandidate = lineageObjectId ? state.objects[lineageObjectId] : undefined;
+  const lineageObject = lineageObjectCandidate?.materialized === false ? undefined : lineageObjectCandidate;
   const turnIndexById = useMemo(
     () => new Map(state.turns.map((turn, index) => [turn.id, index])),
     [state.turns]
@@ -123,10 +128,13 @@ export function TracepadApp({ host, onOpenClassic }: TracepadAppProps): JSX.Elem
       updateTurn(turn.id, { status: "failed", error: "Write a request before generating code." });
       return;
     }
-    const inputObjectIds = resolveInputObjectIds(turn.prompt, allObjects, turn.parentObjectId);
+    const inputObjectIds = resolveInputObjectIds(turn.prompt, materializedObjects, turn.parentObjectId);
     const referencedObjects = inputObjectIds
       .map(objectId => state.objects[objectId])
       .filter((object): object is TracepadObject => Boolean(object));
+    const expectedResultName = turn.outputObjectId
+      ? state.objects[turn.outputObjectId]?.alias
+      : `result_${state.turns.findIndex(item => item.id === turn.id) + 1}`;
     updateTurn(turn.id, { status: "generating", error: undefined, generationNote: undefined, inputObjectIds });
     try {
       const prompt = repairError
@@ -138,6 +146,7 @@ export function TracepadApp({ host, onOpenClassic }: TracepadAppProps): JSX.Elem
         context: {
           notebook_code: host.notebookCode(turn.id),
           notebook_variables: host.variableNames(),
+          expected_result_name: expectedResultName,
           references: referencedObjects.map(generationObjectContext),
           parent: turn.parentObjectId
             ? generationObjectContext(state.objects[turn.parentObjectId])
@@ -156,7 +165,7 @@ export function TracepadApp({ host, onOpenClassic }: TracepadAppProps): JSX.Elem
     } catch (error) {
       updateTurn(turn.id, { status: "failed", error: error instanceof Error ? error.message : String(error) });
     }
-  }, [allObjects, host, providerStatus?.ready, state.objects, updateTurn]);
+  }, [host, materializedObjects, providerStatus?.ready, state.objects, state.turns, updateTurn]);
 
   const run = useCallback(async (turn: TracepadTurn) => {
     host.ensureTurn(turn);
@@ -171,7 +180,7 @@ export function TracepadApp({ host, onOpenClassic }: TracepadAppProps): JSX.Elem
     const alias = state.objects[objectId]?.alias || `result_${state.turns.findIndex(item => item.id === turn.id) + 1}`;
     const object = await host.captureObject(turn, objectId, alias).catch(() => null);
     updateState(current => {
-      const nextObject = object ? { ...object, live: true } : undefined;
+      const nextObject = object ? { ...object, materialized: true, live: true } : undefined;
       const nextTurn = {
         ...turn,
         status: "succeeded" as const,
@@ -188,7 +197,6 @@ export function TracepadApp({ host, onOpenClassic }: TracepadAppProps): JSX.Elem
       host.updateTurnObjectMetadata(nextTurn, nextObject);
       return next;
     });
-    if (object) setSelectedObjectId(object.id);
   }, [host, state.objects, state.turns, updateState, updateTurn]);
 
   const runAll = useCallback(async () => {
@@ -310,7 +318,10 @@ export function TracepadApp({ host, onOpenClassic }: TracepadAppProps): JSX.Elem
             const inputObjects = (lineage.inputsByTurnId[turn.id] ?? [])
               .map(objectId => state.objects[objectId])
               .filter((object): object is TracepadObject => Boolean(object));
-            const outputObject = turn.outputObjectId ? state.objects[turn.outputObjectId] : undefined;
+            const outputObjectCandidate = turn.outputObjectId ? state.objects[turn.outputObjectId] : undefined;
+            const outputObject = outputObjectCandidate?.materialized === false
+              ? undefined
+              : outputObjectCandidate;
             const consumers = outputObject
               ? (lineage.consumersByObjectId[outputObject.id] ?? []).map(turnId => {
                   const consumerTurn = state.turns.find(candidate => candidate.id === turnId);
@@ -344,7 +355,7 @@ export function TracepadApp({ host, onOpenClassic }: TracepadAppProps): JSX.Elem
               lineageMode={lineageMode}
               onPromptChange={prompt => updateTurn(turn.id, {
                 prompt,
-                inputObjectIds: resolveInputObjectIds(prompt, allObjects, turn.parentObjectId),
+                inputObjectIds: resolveInputObjectIds(prompt, materializedObjects, turn.parentObjectId),
                 status: turn.status === "succeeded" ? "stale" : turn.status
               })}
               onCodeChange={code => updateTurn(turn.id, { code, status: turn.status === "succeeded" ? "stale" : turn.status })}
@@ -391,7 +402,7 @@ export function TracepadApp({ host, onOpenClassic }: TracepadAppProps): JSX.Elem
 }
 
 function generationObjectContext(object: TracepadObject | undefined): Record<string, unknown> | null {
-  if (!object) return null;
+  if (!object || object.materialized === false) return null;
   return {
     token: `@${object.alias}`,
     runtime_name: object.alias,

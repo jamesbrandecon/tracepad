@@ -185,10 +185,14 @@ describe("Tracepad generation contract", () => {
 
     const body = JSON.parse(String((fetchMock.mock.calls[0]?.[1] as RequestInit)?.body));
     expect(body.store).toBe(false);
-    expect(body.input).toContain("Notebook code (source only; cell outputs are excluded)");
+    expect(body.input).toContain("Prior notebook code (reference material only; cell outputs are excluded)");
     expect(body.input).toContain("orders = load_orders()");
     expect(body.input).toContain("[REDACTED]");
     expect(body.input).not.toContain("sk-proj-abcdefghijklmnop");
     expect(body.input).not.toContain("transport-secret");
+    expect(body.input.indexOf("Prior notebook code")).toBeLessThan(
+      body.input.indexOf("Active user request")
+    );
+    expect(body.input).toMatch(/Active user request \(answer only this\): Summarize @orders\.$/);
   });
 });

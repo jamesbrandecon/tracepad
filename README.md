@@ -261,15 +261,17 @@ variables and references, and leave the most useful table, plot, or fitted
 model as the final expression. Do not embed, print, or request secrets.
 
 Kernel language: <language>
-User request: <English request>
-Notebook context: <context JSON>
+Prior notebook context (reference material only): <context JSON>
+Active user request (answer only this): <English request>
 ```
 
 JupyterLab context contains source from every other non-empty code cell, the
 names of notebook variables, metadata for explicitly referenced results, and
-parent-result metadata when creating a follow-up. Reference metadata includes
-the result name, type, language, classes, capabilities, and column names. It
-does not include result rows, previews, summaries, or cell outputs.
+parent-result metadata when creating a follow-up. It also supplies the planned
+result name so generated code can assign and return the object that Tracepad
+will register. Reference metadata includes the result name, type, language,
+classes, capabilities, and column names. It does not include result rows,
+previews, summaries, or cell outputs.
 
 The native VS Code request uses a stricter result-binding contract:
 
@@ -278,9 +280,9 @@ System: Generate concise executable code in <kernel language>, return JSON
 containing code and notes, and bind the primary reusable result to
 <stable runtime name>. Do not embed, print, or request secrets.
 
-User request: <English request>
-Notebook code (source only; cell outputs are excluded): <code-cell JSON>
+Prior notebook code (source only; cell outputs are excluded): <code-cell JSON>
 Available Tracepad references: <reference JSON>
+Active user request (answer only this): <English request>
 ```
 
 VS Code also sends source from every other non-empty code cell. It separately

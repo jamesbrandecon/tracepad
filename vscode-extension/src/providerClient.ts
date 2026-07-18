@@ -57,9 +57,9 @@ export async function generateCode(
   const safePrompt = redactSensitiveText(prompt);
   const safeContext = sanitizeGenerationContext(context);
   const input = [
-    `User request: ${safePrompt}`,
-    `Notebook code (source only; cell outputs are excluded): ${JSON.stringify(safeContext.notebookCode)}`,
-    `Available Tracepad references: ${JSON.stringify(safeContext.references)}`
+    `Prior notebook code (reference material only; cell outputs are excluded): ${JSON.stringify(safeContext.notebookCode)}`,
+    `Available Tracepad references: ${JSON.stringify(safeContext.references)}`,
+    `Active user request (answer only this): ${safePrompt}`
   ].join("\n");
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -131,6 +131,7 @@ export function systemInstructions(language: string, runtimeName: string): strin
     "Bind the actual reusable result object, not a dictionary or list containing previews, shapes, columns, dtypes, summaries, or diagnostics.",
     "For tabular requests, bind the full data frame or lazy table; Tracepad renders its own bounded preview and metadata.",
     "The notebook context contains source code only; do not invent output values that were not supplied.",
+    "Treat prior notebook code strictly as context, not as a request to repeat. Answer only the active user request at the end of the message.",
     `The response is invalid unless the code literally creates ${runtimeName} according to the next instruction.`,
     resultContract,
     "Tracepad handles display, result registration, and lineage tracking after execution.",

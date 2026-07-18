@@ -29,7 +29,7 @@ describe("Tracepad lineage", () => {
     expect(resolveInputObjectIds("Plot this", objects, "obj-orders")).toEqual(["obj-orders"]);
   });
 
-  it("indexes producers and consumers, including turns without outputs", () => {
+  it("does not expose planned objects or downstream lineage before results exist", () => {
     const state = defaultState("python");
     const first = state.turns[0];
     first.id = "turn-1";
@@ -38,11 +38,28 @@ describe("Tracepad lineage", () => {
     const child = newTurn("python", "obj-orders");
     child.id = "turn-2";
     child.inputObjectIds = ["obj-orders"];
+    child.outputObjectId = "obj-summary";
+    state.objects["obj-summary"] = {
+      ...object("obj-summary", "summary", child.id),
+      materialized: false,
+      live: false
+    };
     state.turns.push(child);
 
-    const index = buildLineageIndex(state);
-    expect(index.turnByObjectId["obj-orders"]).toBe("turn-1");
-    expect(index.consumersByObjectId["obj-orders"]).toEqual(["turn-2"]);
+    const planned = buildLineageIndex(state);
+    expect(planned.turnByObjectId["obj-orders"]).toBe("turn-1");
+    expect(planned.turnByObjectId["obj-summary"]).toBeUndefined();
+    expect(planned.inputsByTurnId["turn-2"]).toEqual(["obj-orders"]);
+    expect(planned.consumersByObjectId["obj-orders"]).toBeUndefined();
+
+    state.objects["obj-summary"].materialized = true;
+    const completed = buildLineageIndex(state);
+    expect(completed.consumersByObjectId["obj-orders"]).toEqual(["turn-2"]);
+  });
+
+  it("does not resolve planned aliases as executable references", () => {
+    const planned = { ...object("obj-orders", "orders", "turn-1"), materialized: false };
+    expect(resolveInputObjectIds("Summarize @orders", [planned], planned.id)).toEqual([]);
   });
 
   it("collects the connected lineage while excluding unrelated turns", () => {
@@ -61,6 +78,8 @@ describe("Tracepad lineage", () => {
     const plot = newTurn("python", "obj-model");
     plot.id = "turn-plot";
     plot.inputObjectIds = ["obj-model"];
+    plot.outputObjectId = "obj-plot";
+    state.objects["obj-plot"] = object("obj-plot", "plot", plot.id);
 
     const unrelated = newTurn("python");
     unrelated.id = "turn-unrelated";

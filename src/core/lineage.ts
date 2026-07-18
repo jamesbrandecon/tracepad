@@ -12,11 +12,13 @@ export function resolveInputObjectIds(
   objects: readonly TracepadObject[],
   parentObjectId?: string
 ): string[] {
-  const aliases = new Map(objects.map(object => [object.alias, object.id]));
+  const materializedObjects = objects.filter(object => object.materialized !== false);
+  const objectIds = new Set(materializedObjects.map(object => object.id));
+  const aliases = new Map(materializedObjects.map(object => [object.alias, object.id]));
   const requestedAliases = [...prompt.matchAll(/@([A-Za-z_][A-Za-z0-9_]*)/g)]
     .map(match => match[1]);
   const ids = [
-    parentObjectId,
+    parentObjectId && objectIds.has(parentObjectId) ? parentObjectId : undefined,
     ...requestedAliases.map(alias => aliases.get(alias))
   ].filter((value): value is string => Boolean(value));
   return [...new Set(ids)];
@@ -36,13 +38,25 @@ export function buildLineageIndex(state: TracepadState): LineageIndex {
   const outputObjectByTurnId: Record<string, string> = {};
   const turnByObjectId: Record<string, string> = {};
 
+  const materializedObjectIds = new Set(
+    Object.values(state.objects)
+      .filter(object => object.materialized !== false)
+      .map(object => object.id)
+  );
+
   for (const object of Object.values(state.objects)) {
+    if (!materializedObjectIds.has(object.id)) continue;
     turnByObjectId[object.id] = object.turnId;
   }
   for (const turn of state.turns) {
-    const inputs = inputObjectIdsForTurn(turn, state);
+    const inputs = inputObjectIdsForTurn(turn, state)
+      .filter(objectId => materializedObjectIds.has(objectId));
     inputsByTurnId[turn.id] = inputs;
-    if (turn.outputObjectId) outputObjectByTurnId[turn.id] = turn.outputObjectId;
+    const outputObjectId = turn.outputObjectId && materializedObjectIds.has(turn.outputObjectId)
+      ? turn.outputObjectId
+      : undefined;
+    if (!outputObjectId) continue;
+    outputObjectByTurnId[turn.id] = outputObjectId;
     for (const objectId of inputs) {
       consumersByObjectId[objectId] ??= [];
       if (!consumersByObjectId[objectId].includes(turn.id)) {
