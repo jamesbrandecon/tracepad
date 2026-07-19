@@ -125,14 +125,14 @@ function render({ model, el }) {
       let aiAction;
       try {
         aiAction = await waitFor(() =>
-          [...document.querySelectorAll("[role='menuitem'], button")].find(
+          [...document.querySelectorAll("[role='option'], [role='menuitem'], button")].find(
             (candidate) =>
               candidate.textContent?.trim().startsWith("Refactor with AI") &&
               !candidate.disabled
           )
         );
       } catch {
-        throw new Error("Configure a Marimo AI edit model in Settings, then try again.");
+        throw new Error("Marimo's Refactor with AI command is unavailable for this cell.");
       }
       aiAction.click();
 
@@ -157,12 +157,7 @@ function render({ model, el }) {
       });
       status.textContent = "Generating code";
       submit.click();
-
-      await waitFor(
-        () => !document.querySelector("[contenteditable='true'][aria-placeholder^='Generate with AI']"),
-        120000,
-      );
-      status.textContent = "Code ready for review";
+      status.textContent = "Request sent to Marimo";
     } catch (error) {
       status.textContent = error instanceof Error ? error.message : String(error);
     } finally {

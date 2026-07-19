@@ -277,6 +277,10 @@ Values entered in JupyterLab live only in the Jupyter server process.
 1. Start the demo with `uv run --no-sync marimo edit demo/tracepad_marimo_demo.py`.
 2. Open **Settings > AI** in Marimo.
 3. Choose and configure an exact **Edit model**.
+   For a local Ollama model not shown in Marimo's built-in catalog, add its
+   qualified id, such as `ollama/qwen2.5-coder:0.5b`, as a custom model. Use
+   `http://127.0.0.1:11434/v1` as the Ollama base URL; Marimo calls Ollama's
+   OpenAI-compatible API.
 4. Click **Generate** on a Tracepad Ask. Tracepad sends that Ask to Marimo's AI
    editor for the native cell immediately below it.
 5. Review the generated code, accept it, and run the cell normally.

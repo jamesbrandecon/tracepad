@@ -58,8 +58,10 @@ def test_prompt_returns_a_marimo_display_object():
     assert rendered.label == "Ask 2"
     assert "Generate" in rendered._esm
     assert "Refactor with AI" in rendered._esm
+    assert "[role='option']" in rendered._esm
     assert 'document.execCommand("insertText", false, text)' in rendered._esm
-    assert "Configure a Marimo AI edit model in Settings" in rendered._esm
+    assert "Refactor with AI command is unavailable" in rendered._esm
+    assert "Request sent to Marimo" in rendered._esm
 
 
 def test_demo_is_importable_and_defines_a_marimo_app():
