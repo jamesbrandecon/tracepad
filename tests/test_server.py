@@ -43,11 +43,12 @@ def test_generation_parser_rejects_empty_code():
 
 
 def test_generation_context_redacts_common_secrets():
+    fake_token = "sk-proj-" + "abcdefghijklmnop"
     context = {
         "notebook_code": [
             {
                 "cell_index": 1,
-                "source": 'api_key = "sk-proj-abcdefghijklmnop"\norders = load_orders()',
+                "source": f'api_key = "{fake_token}"\norders = load_orders()',
             }
         ]
     }
@@ -56,8 +57,8 @@ def test_generation_context_redacts_common_secrets():
 
     assert "orders = load_orders()" in value
     assert "[REDACTED]" in value
-    assert "sk-proj-abcdefghijklmnop" not in value
-    assert server._redact_sensitive_text("api_key = sk-proj-abcdefghijklmnop") == (
+    assert fake_token not in value
+    assert server._redact_sensitive_text(f"api_key = {fake_token}") == (
         "api_key = [REDACTED]"
     )
     assert value.index("Prior notebook context") < value.index("Active user request")

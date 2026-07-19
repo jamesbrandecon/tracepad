@@ -1,0 +1,372 @@
+:root {
+  --tp-marimo-ink: #172033;
+  --tp-marimo-cobalt: #3154c6;
+  --tp-marimo-cobalt-soft: #edf1fb;
+  --tp-marimo-bg: #f5f7fb;
+  --tp-marimo-panel: #ffffff;
+  --tp-marimo-soft: #f8f9fc;
+  --tp-marimo-border: #d9deea;
+  --tp-marimo-muted: #667085;
+  --tp-marimo-gold: #e6ad35;
+  --tp-marimo-danger: #c24a3a;
+}
+
+body {
+  background: var(--tp-marimo-bg);
+}
+
+#App {
+  color: var(--tp-marimo-ink);
+  background: var(--tp-marimo-bg);
+}
+
+.tracepad-marimo-shell {
+  width: min(100%, 1160px);
+  margin: 0 auto;
+  color: var(--tp-marimo-ink);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.tracepad-marimo-header,
+.tracepad-marimo-prompt,
+.tracepad-marimo-card {
+  box-sizing: border-box;
+  border: 1px solid var(--tp-marimo-border);
+  border-radius: 8px;
+  background: var(--tp-marimo-panel);
+  box-shadow: 0 12px 28px rgba(17, 24, 39, 0.045);
+}
+
+.tracepad-marimo-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 15px 17px;
+  border-top: 3px solid var(--tp-marimo-cobalt);
+}
+
+.tracepad-marimo-brand {
+  display: grid;
+  gap: 2px;
+}
+
+.tracepad-marimo-brand strong {
+  font-size: 19px;
+  letter-spacing: 0;
+}
+
+.tracepad-marimo-brand span,
+.tracepad-marimo-header-note,
+.tracepad-marimo-subtitle {
+  color: var(--tp-marimo-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.tracepad-marimo-header-note {
+  max-width: 440px;
+  text-align: right;
+}
+
+.tracepad-marimo-prompt {
+  position: relative;
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+  padding: 15px 17px;
+  border-left: 3px solid var(--tp-marimo-cobalt);
+}
+
+.tracepad-marimo-prompt-label {
+  padding-top: 2px;
+  color: var(--tp-marimo-cobalt);
+  font-size: 11px;
+  font-weight: 850;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.tracepad-marimo-prompt-text {
+  color: var(--tp-marimo-ink);
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.tracepad-marimo-prompt-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  min-width: 112px;
+}
+
+.tracepad-marimo-generate {
+  min-height: 34px;
+  padding: 0 14px;
+  border: 1px solid var(--tp-marimo-cobalt);
+  border-radius: 6px;
+  background: var(--tp-marimo-cobalt);
+  color: #fff;
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.tracepad-marimo-generate:hover {
+  background: #2847ad;
+}
+
+.tracepad-marimo-generate:focus-visible {
+  outline: 2px solid #91a6ea;
+  outline-offset: 2px;
+}
+
+.tracepad-marimo-generate:disabled {
+  cursor: wait;
+  opacity: 0.62;
+}
+
+.tracepad-marimo-generate-status {
+  max-width: 180px;
+  color: var(--tp-marimo-muted);
+  font-size: 11px;
+  line-height: 1.3;
+}
+
+/* Tracepad's hidden scaffolding should read as notebook content, not nested cells. */
+[data-cell-name="tracepad_header"],
+[data-cell-name^="tracepad_ask_"] {
+  background: transparent;
+  box-shadow: none;
+}
+
+[data-cell-name="tracepad_setup"] > .tray > .absolute,
+[data-cell-name="tracepad_header"] > .tray > .absolute,
+[data-cell-name^="tracepad_ask_"] > .tray > .absolute,
+[data-cell-name="tracepad_setup"] > .absolute,
+[data-cell-name="tracepad_header"] > .absolute,
+[data-cell-name^="tracepad_ask_"] > .absolute,
+[data-cell-name="tracepad_setup"] [data-testid="cell-editor"],
+[data-cell-name="tracepad_header"] [data-testid="cell-editor"],
+[data-cell-name^="tracepad_ask_"] [data-testid="cell-editor"] {
+  display: none;
+}
+
+[data-cell-name="tracepad_setup"] [data-testid="console-output-area"],
+[data-cell-name="tracepad_header"] [data-testid="console-output-area"],
+[data-cell-name^="tracepad_ask_"] [data-testid="console-output-area"] {
+  padding: 0;
+}
+
+[data-cell-name="tracepad_setup"] [data-testid="console-output-area"] > span[contenteditable="true"],
+[data-cell-name="tracepad_header"] [data-testid="console-output-area"] > span[contenteditable="true"],
+[data-cell-name^="tracepad_ask_"] [data-testid="console-output-area"] > span[contenteditable="true"] {
+  display: none;
+}
+
+[data-cell-name="tracepad_header"] [data-cell-role="output"],
+[data-cell-name^="tracepad_ask_"] [data-cell-role="output"] {
+  padding-block: 0;
+}
+
+[data-cell-name="tracepad_header"] .output.block,
+[data-cell-name^="tracepad_ask_"] .output.block {
+  overflow: visible;
+}
+
+.tracepad-marimo-reference {
+  display: inline-flex;
+  align-items: center;
+  min-height: 25px;
+  margin: 0 2px;
+  padding: 0 7px;
+  border: 1px solid #bac6ea;
+  border-radius: 999px;
+  background: var(--tp-marimo-cobalt-soft);
+  color: var(--tp-marimo-cobalt);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.tracepad-marimo-card {
+  overflow: hidden;
+}
+
+.tracepad-marimo-card-header {
+  min-height: 54px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 10px 13px;
+  border-bottom: 1px solid var(--tp-marimo-border);
+}
+
+.tracepad-marimo-title {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.tracepad-marimo-eyebrow {
+  color: var(--tp-marimo-cobalt);
+  font-size: 10px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.tracepad-marimo-title strong {
+  overflow: hidden;
+  font-size: 15px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tracepad-marimo-meta {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tracepad-marimo-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 25px;
+  padding: 0 8px;
+  border: 1px solid var(--tp-marimo-border);
+  border-radius: 999px;
+  background: var(--tp-marimo-soft);
+  color: var(--tp-marimo-muted);
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.tracepad-marimo-pill.alias {
+  border-color: #bac6ea;
+  background: var(--tp-marimo-cobalt-soft);
+  color: var(--tp-marimo-cobalt);
+}
+
+.tracepad-marimo-lineage {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+  padding: 9px 13px;
+  border-bottom: 1px solid var(--tp-marimo-border);
+  background: #f8fbfd;
+}
+
+.tracepad-marimo-lineage > span:first-child {
+  color: var(--tp-marimo-muted);
+  font-size: 10px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.tracepad-marimo-parent {
+  color: var(--tp-marimo-cobalt);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.tracepad-marimo-arrow {
+  color: #8093cf;
+  font-size: 13px;
+}
+
+.tracepad-marimo-tabs {
+  padding: 12px;
+}
+
+.tracepad-marimo-summary {
+  margin: 0;
+  overflow: auto;
+  padding: 12px;
+  border: 1px solid var(--tp-marimo-border);
+  border-radius: 7px;
+  background: #fbfcfe;
+  color: #14213a;
+  font-family: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+
+.tracepad-marimo-empty {
+  padding: 18px;
+  border: 1px dashed var(--tp-marimo-border);
+  border-radius: 7px;
+  color: var(--tp-marimo-muted);
+  font-size: 12px;
+  text-align: center;
+}
+
+.tracepad-marimo-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.tracepad-marimo-stat {
+  display: grid;
+  gap: 3px;
+  padding: 11px;
+  border: 1px solid var(--tp-marimo-border);
+  border-radius: 7px;
+  background: var(--tp-marimo-soft);
+}
+
+.tracepad-marimo-stat span {
+  color: var(--tp-marimo-muted);
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.tracepad-marimo-stat strong {
+  font-size: 15px;
+}
+
+.tracepad-marimo-help {
+  padding: 10px 12px;
+  border: 1px solid #dce3f7;
+  border-radius: 7px;
+  background: #f7f9ff;
+  color: #31446e;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.tracepad-marimo-card .marimo-tabs-trigger[data-state="active"] {
+  color: var(--tp-marimo-cobalt);
+}
+
+@media (max-width: 720px) {
+  .tracepad-marimo-header,
+  .tracepad-marimo-card-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .tracepad-marimo-header-note {
+    text-align: left;
+  }
+
+  .tracepad-marimo-prompt {
+    grid-template-columns: 1fr;
+  }
+
+  .tracepad-marimo-prompt-actions {
+    justify-content: flex-start;
+  }
+
+  .tracepad-marimo-grid {
+    grid-template-columns: 1fr;
+  }
+}

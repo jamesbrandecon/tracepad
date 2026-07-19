@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "tracepad"
 version = "0.3.10"
-description = "An inspectable, AI-assisted notebook interface for JupyterLab"
+description = "Inspectable, AI-assisted notebook workflows for JupyterLab, VS Code, and Marimo"
 readme = "README.md"
 license-files = ["LICENSE"]
 requires-python = ">=3.9"
@@ -32,6 +32,11 @@ demo = [
   "pandas>=2.1",
   "statsmodels>=0.14"
 ]
+marimo = [
+  "anywidget>=0.11,<1; python_version >= '3.10'",
+  "marimo>=0.23.1,<0.24; python_version >= '3.10'",
+  "pydantic-ai-slim[openai]>=1.52.0,<3; python_version >= '3.10'"
+]
 dev = [
   "build>=1.2",
   "pytest>=8.0",
@@ -46,7 +51,9 @@ tracepad = "tracepad.server"
 "jupyter-config/jupyter_server_config.d/tracepad.json" = "etc/jupyter/jupyter_server_config.d/tracepad.json"
 "tracepad_demo.ipynb" = "share/tracepad/tracepad_demo.ipynb"
 "demo/tracepad_demo_clean.ipynb" = "share/tracepad/tracepad_demo_clean.ipynb"
-"demo/data/retail_orders.csv" = "share/tracepad/data/retail_orders.csv"
+"demo/tracepad_marimo_demo.py" = "share/tracepad/demo/tracepad_marimo_demo.py"
+"demo/data/retail_orders.csv" = "share/tracepad/demo/data/retail_orders.csv"
+"style/marimo.css" = "share/tracepad/style/marimo.css"
 
 [tool.hatch.build.hooks.jupyter-builder]
 build-function = "hatch_jupyter_builder.npm_builder"
@@ -54,3 +61,19 @@ ensured-targets = ["tracepad/labextension/static/style.js"]
 skip-if-exists = ["tracepad/labextension/static/style.js"]
 build-kwargs = { build_cmd = "build", npm = ["pnpm"] }
 editable-build-kwargs = { build_cmd = "build", npm = ["pnpm"] }
+
+[tool.marimo.display]
+cell_output = "below"
+dataframes = "rich"
+default_width = "full"
+reference_highlighting = true
+
+[tool.marimo.runtime]
+# The demo's hidden setup cells render its header and prompt cards. Run them on
+# open even when a user's global Marimo configuration disables startup runs.
+auto_instantiate = true
+
+[tool.marimo.ai]
+rules = """
+Generate one concise executable cell for the active request. Treat prior cells as context, not as requests to repeat. Reuse variables referenced with @ by their existing Python names. Assign the primary reusable result to a descriptive snake_case variable. Preserve fitted model objects instead of replacing them with summaries or predictions. When tracepad.marimo is imported as tracepad_marimo, end analytical cells with tracepad_marimo.inspect(result_name, name="result_name", parents=["input_name"]) so tables, plots, and models receive the Tracepad inspection surface. Omit parents when the result has no named input. Never include credentials in generated code.
+"""
